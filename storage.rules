@@ -1,0 +1,33 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Attachments - ruta obligatoria: users/{userId}/notes/{noteId}/{fileId}
+    match /users/{userId}/notes/{noteId}/{fileId} {
+
+      // Solo el dueño del archivo puede leer
+      allow read: if request.auth != null
+        && request.auth.uid == userId;
+
+      // Crear archivo: autenticado, dueño de la ruta, tamaño y tipo validos
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size <= 10 * 1024 * 1024  // 10MB
+        && request.resource.contentType.matches(
+          'image/jpeg|image/png|image/gif|image/webp|application/pdf|audio/mpeg|audio/mp4'
+        );
+
+      // No se permite actualizar archivos - solo crear y eliminar
+      allow update: if false;
+
+      // Solo el dueño puede eliminar
+      allow delete: if request.auth != null
+        && request.auth.uid == userId;
+    }
+
+    // Bloquear cualquier otra ruta no definida
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

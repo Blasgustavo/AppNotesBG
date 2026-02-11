@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Funciones helper
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isCollaborator(collaborators) {
+      return isAuthenticated()
+        && 'collaborators' in resource.data
+        && resource.data.collaborators.hasAny([{user_id: request.auth.uid}]);
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Notebooks
+    match /notebooks/{notebookId} {
+      allow read, write: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // Notes
+    match /notes/{noteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.user_id == request.auth.uid
+        || isCollaborator(resource.data.collaborators)
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // Note history - inmutable
+    match /note_history/{historyId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Themes
+    match /themes/{themeId} {
+      allow read, write: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // Attachments
+    match /attachments/{attachmentId} {
+      allow read, write: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // Invitations
+    match /invitations/{invitationId} {
+      allow create, delete: if isAuthenticated()
+        && request.resource.data.invited_by_uid == request.auth.uid;
+      allow read, update: if isAuthenticated() && (
+        resource.data.invited_by_uid == request.auth.uid
+        || resource.data.invited_email == request.auth.token.email
+      );
+    }
+  }
+}
