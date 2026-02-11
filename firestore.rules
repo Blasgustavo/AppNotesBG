@@ -12,22 +12,46 @@ service cloud.firestore {
     
     function isCollaborator(collaborators) {
       return isAuthenticated()
-        && 'collaborators' in resource.data
-        && resource.data.collaborators.hasAny([{user_id: request.auth.uid}]);
+        && 'sharing' in resource.data
+        && 'collaborators' in resource.data.sharing
+        && resource.data.sharing.collaborators.hasAny([{user_id: request.auth.uid}]);
     }
     
     function isEditCollaborator(collaborators) {
       return isAuthenticated()
-        && 'collaborators' in resource.data
-        && resource.data.collaborators.any(collaborator => 
+        && 'sharing' in resource.data
+        && 'collaborators' in resource.data.sharing
+        && resource.data.sharing.collaborators.any(collaborator => 
           collaborator.user_id == request.auth.uid 
-          && collaborator.permission == 'edit'
+          && (collaborator.permission == 'edit' || collaborator.permission == 'comment')
         );
+    }
+
+    function isValidContentHash(hash) {
+      return hash.matches('^[a-fA-F0-9]{64}$');
+    }
+
+    function isValidChecksum(checksum) {
+      return checksum.matches('^[a-fA-F0-9]{32}$');
+    }
+
+    function isValidIpAddress(ip) {
+      return ip.matches('^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$');
+    }
+
+    function isNotRateLimited(userId) {
+      // Verificar si el usuario no está rate limited
+      return true; // Implementar con Firestore counters o Cloud Functions
     }
 
     // Users
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.status in ['active', 'suspended', 'deleted']
+        && 'security' in request.resource.data
+        && 'quotas' in request.resource.data
+        && 'audit' in request.resource.data;
     }
 
     // Notebooks
@@ -42,12 +66,28 @@ service cloud.firestore {
     match /notes/{noteId} {
       allow read: if isAuthenticated() && (
         resource.data.user_id == request.auth.uid
-        || isCollaborator(resource.data.collaborators)
+        || isCollaborator(resource.data.sharing.collaborators)
+        || ('sharing' in resource.data && 'public_slug' in resource.data.sharing && 
+            resource.data.sharing.public_access_expires == null || 
+            resource.data.sharing.public_access_expires > request.time)
       );
       allow create: if isAuthenticated()
-        && request.resource.data.user_id == request.auth.uid;
+        && request.resource.data.user_id == request.auth.uid
+        && 'content_hash' in request.resource.data
+        && isValidContentHash(request.resource.data.content_hash)
+        && 'checksum' in request.resource.data
+        && isValidChecksum(request.resource.data.checksum)
+        && 'version' in request.resource.data
+        && request.resource.data.version == 1
+        && 'audit' in request.resource.data
+        && isValidIpAddress(request.resource.data.audit.created_ip);
       allow update: if isAuthenticated()
-        && (resource.data.user_id == request.auth.uid || isEditCollaborator(resource.data.collaborators));
+        && (resource.data.user_id == request.auth.uid || isEditCollaborator(resource.data.sharing.collaborators))
+        && 'content_hash' in request.resource.data
+        && isValidContentHash(request.resource.data.content_hash)
+        && 'version' in request.resource.data
+        && request.resource.data.version == resource.data.version + 1
+        && 'audit' in request.resource.data;
       allow delete: if isAuthenticated()
         && resource.data.user_id == request.auth.uid;
     }
@@ -81,12 +121,36 @@ service cloud.firestore {
 
     // Invitations
     match /invitations/{invitationId} {
-      allow create, delete: if isAuthenticated()
-        && request.resource.data.invited_by_uid == request.auth.uid;
-      allow read, update: if isAuthenticated() && (
+      allow create: if isAuthenticated()
+        && request.resource.data.invited_by_uid == request.auth.uid
+        && 'invitation_token' in request.resource.data
+        && 'expires_at' in request.resource.data
+        && request.resource.data.expires_at > request.time
+        && request.resource.data.max_uses >= 1
+        && 'audit' in request.resource.data;
+      allow delete: if isAuthenticated()
+        && resource.data.invited_by_uid == request.auth.uid;
+      allow read: if isAuthenticated() && (
         resource.data.invited_by_uid == request.auth.uid
         || resource.data.invited_email == request.auth.token.email
       );
+      allow update: if isAuthenticated() && (
+        (resource.data.invited_by_uid == request.auth.uid && request.resource.data.status in ['revoked'])
+        || (resource.data.invited_email == request.auth.token.email && request.resource.data.status in ['accepted', 'rejected'])
+      );
+    }
+
+    // Audit Logs - solo escritura para usuarios, lectura para admins
+    match /audit_logs/{logId} {
+      allow read: if false; // Solo accesible via Cloud Functions para admins
+      allow create: if isAuthenticated()
+        && request.resource.data.user_id == request.auth.uid
+        && 'action' in request.resource.data
+        && 'resource_type' in request.resource.data
+        && 'resource_id' in request.resource.data
+        && isValidIpAddress(request.resource.data.ip_address)
+        && 'security_context' in request.resource.data;
+      allow update, delete: if false; // Los logs son inmutables
     }
   }
 }

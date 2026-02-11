@@ -5,22 +5,49 @@ service firebase.storage {
     // Attachments - ruta obligatoria: users/{userId}/notes/{noteId}/{fileId}
     match /users/{userId}/notes/{noteId}/{fileId} {
 
-      // Solo el dueño del archivo puede leer
+      // Solo el dueño del archivo puede leer (o colaboradores con permisos)
       allow read: if request.auth != null
-        && request.auth.uid == userId;
+        && (request.auth.uid == userId || 
+            // Validar si es colaborador con acceso a este noteId
+            false); // Esta validación requiere una Cloud Function
 
-      // Crear archivo: autenticado, dueño de la ruta, tamaño y tipo validos
+      // Crear archivo: autenticado, dueño de la ruta, metadata valida
       allow create: if request.auth != null
         && request.auth.uid == userId
         && request.resource.size <= 10 * 1024 * 1024  // 10MB
         && request.resource.contentType.matches(
           'image/jpeg|image/png|image/gif|image/webp|application/pdf|audio/mpeg|audio/mp4'
-        );
+        )
+        && 'file_hash' in request.resource.metadata
+        && 'virus_scan_status' in request.resource.metadata
+        && request.resource.metadata.virus_scan_status == 'pending'
+        && 'original_name' in request.resource.metadata;
 
       // No se permite actualizar archivos - solo crear y eliminar
       allow update: if false;
 
       // Solo el dueño puede eliminar
+      allow delete: if request.auth != null
+        && request.auth.uid == userId;
+    }
+
+    // Thumbnails - ruta para imagenes optimizadas
+    match /users/{userId}/notes/{noteId}/thumbnails/{thumbnailId} {
+      allow read: if request.auth != null
+        && request.auth.uid == userId;
+      allow write: if false; // Solo generado por Cloud Functions
+    }
+
+    // Temp uploads - para procesamiento antes de mover a ubicación final
+    match /temp-uploads/{userId}/{uploadId} {
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches(
+          'image/jpeg|image/png|image/gif|image/webp|application/pdf|audio/mpeg|audio/mp4'
+        );
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId;
       allow delete: if request.auth != null
         && request.auth.uid == userId;
     }

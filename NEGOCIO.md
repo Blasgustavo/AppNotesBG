@@ -119,7 +119,7 @@ Descripción: Carpeta raíz para pruebas unitarias, integración y e2e.
 ## Modelo de datos (Firestore)
 
 ### Colección: `users`
-Preferencias globales del usuario y datos de autenticación.
+Preferencias globales del usuario, datos de autenticación y configuración de seguridad.
 
 ```json
 {
@@ -128,25 +128,50 @@ Preferencias globales del usuario y datos de autenticación.
   "display_name": "Blas",
   "avatar_url": "https://...",
   "created_at": "timestamp",
-  "app_theme": "dark",
-  "default_note_style": {
-    "background_color": "#FFFFFF",
-    "text_color": "#333333"
+  "updated_at": "timestamp",
+  "status": "active|suspended|deleted",
+  "last_login_at": "timestamp",
+  "login_count": 156,
+  "email_verified": true,
+  "preferences": {
+    "language": "es|en|pt",
+    "timezone": "America/New_York",
+    "auto_save_interval": 30000,
+    "export_format": "pdf|markdown|html",
+    "theme_id": "custom_theme_123"
   },
-  "default_font_family": "Inter",
-  "default_font_size": 14,
-  "default_color_palette": ["#FFEB3B", "#2196F3"],
-  "storage_used_bytes": 0,
-  "storage_limit_bytes": 524288000
+  "security": {
+    "failed_attempts": 0,
+    "last_failed_at": null,
+    "two_factor_enabled": false,
+    "session_timeout": 3600
+  },
+  "quotas": {
+    "storage_used_bytes": 1024000,
+    "storage_limit_bytes": 524288000,
+    "notes_count": 45,
+    "attachments_count": 23
+  },
+  "audit": {
+    "created_ip": "192.168.1.1",
+    "last_updated_by": "system",
+    "last_updated_ip": "192.168.1.1"
+  }
 }
 ```
 
 > `storage_limit_bytes` = 500MB por usuario. Se valida en Storage Rules y en NestJS al subir archivos.
+> 
+> **Nuevos campos de seguridad:**
+> - `status`: Control de estado de cuenta para suspensión/eliminación
+> - `last_login_at` y `login_count`: Para monitoreo de seguridad y análisis
+> - `security.failed_attempts`: Para bloqueo automático por intentos fallidos
+> - `audit.*`: Trail completo de auditoría por usuario
 
 ---
 
 ### Colección: `notebooks`
-Libretas que agrupan notas. El usuario puede crear múltiples libretas.
+Libretas que agrupan notas. El usuario puede crear múltiples libretas con soporte para jerarquía y sharing.
 
 ```json
 {
@@ -159,16 +184,35 @@ Libretas que agrupan notas. El usuario puede crear múltiples libretas.
   "created_at": "timestamp",
   "updated_at": "timestamp",
   "is_default": false,
-  "note_count": 12
+  "is_favorite": false,
+  "sort_order": 1,
+  "note_count": 12,
+  "sharing": {
+    "share_token": "abc123def456",
+    "share_permissions": "none|read|comment",
+    "public_access_expires": null
+  },
+  "collaboration_mode": "private|team|public",
+  "audit": {
+    "created_ip": "192.168.1.1",
+    "last_updated_by": "google_uid",
+    "last_updated_ip": "192.168.1.1"
+  }
 }
 ```
 
 > Cada usuario tiene una libreta `is_default: true` creada automáticamente al registrarse.
+> 
+> **Nuevos campos de colaboración:**
+> - `sharing.*`: Sistema de sharing público con tokens y permisos
+> - `collaboration_mode`: Modo de colaboración (privado, equipo, público)
+> - `is_favorite` y `sort_order`: Para UX y organización personal
+> - `audit.*`: Auditoría completa de cambios
 
 ---
 
 ### Colección: `notes`
-Notas creadas por el usuario. El contenido usa formato **TipTap JSON**.
+Notas creadas por el usuario con integridad de datos, control de versiones y colaboración avanzada.
 
 ```json
 {
@@ -177,11 +221,22 @@ Notas creadas por el usuario. El contenido usa formato **TipTap JSON**.
   "notebook_id": "notebook_id",
   "title": "Mi primera nota",
   "content": {
+    "schema_version": "2.0",
     "type": "doc",
     "content": [
       { "type": "paragraph", "content": [{ "type": "text", "text": "Hola mundo" }] }
-    ]
+    ],
+    "metadata": {
+      "word_count": 1250,
+      "character_count": 7500,
+      "last_hash": "sha256_hash"
+    }
   },
+  "content_hash": "sha256_hash_of_content",
+  "checksum": "md5_checksum_for_integrity",
+  "version": 1,
+  "sync_status": "synced|pending|conflict",
+  "last_sync_at": "timestamp",
   "created_at": "timestamp",
   "updated_at": "timestamp",
   "deleted_at": null,
@@ -189,13 +244,32 @@ Notas creadas por el usuario. El contenido usa formato **TipTap JSON**.
   "reminder_at": null,
   "tags": ["personal", "ideas"],
   "is_pinned": false,
-  "collaborators": [
-    { "user_id": "google_uid_2", "permission": "view" }
-  ],
+  "is_template": false,
+  "template_id": null,
+  "word_count": 1250,
+  "reading_time_minutes": 5,
+  "sharing": {
+    "public_slug": "abc123",
+    "public_access_expires": "timestamp",
+    "collaborators": [
+      {
+        "user_id": "google_uid_2",
+        "permission": "view|edit|comment",
+        "added_at": "timestamp",
+        "added_by": "google_uid"
+      }
+    ]
+  },
+  "locking": {
+    "locked_by": null,
+    "locked_at": null,
+    "lock_expires": null
+  },
   "style": {
     "background_color": "#FFFFFF",
     "text_color": "#333333",
-    "highlight_color": "#FFEB3B"
+    "highlight_color": "#FFEB3B",
+    "theme_id": "custom_theme_456"
   },
   "font": {
     "family": "Inter",
@@ -203,15 +277,17 @@ Notas creadas por el usuario. El contenido usa formato **TipTap JSON**.
     "weight": "normal",
     "line_height": 1.4
   },
-  "attachments": [
-    {
-      "id": "file_id",
-      "url": "https://...",
-      "type": "image",
-      "name": "foto.jpg",
-      "size_bytes": 204800
-    }
-  ]
+  "attachments_summary": {
+    "count": 3,
+    "total_size_bytes": 512000,
+    "has_images": true,
+    "has_documents": false
+  },
+  "audit": {
+    "created_ip": "192.168.1.1",
+    "last_updated_by": "google_uid",
+    "last_updated_ip": "192.168.1.1"
+  }
 }
 ```
 
@@ -220,16 +296,31 @@ Notas creadas por el usuario. El contenido usa formato **TipTap JSON**.
 | Campo | Descripción |
 |---|---|
 | `notebook_id` | Libreta a la que pertenece la nota |
-| `content` | TipTap JSON (reemplaza `richtext \| markdown \| json` indefinido) |
+| `content` | TipTap JSON con schema versioning y metadata |
+| `content_hash` | SHA-256 para verificación de integridad |
+| `checksum` | MD5 para validación rápida de datos |
+| `version` | Para optimistic locking y control de cambios |
+| `sync_status` | Estado de sincronización con backend |
 | `archived_at` | Archivar nota sin eliminarla (distinto a `deleted_at`) |
 | `reminder_at` | Timestamp para recordatorio (procesado por Cloud Function) |
-| `collaborators[]` | Lista de usuarios con acceso y nivel de permiso (`view` / `edit`) |
-| `attachments[].size_bytes` | Tamaño del archivo para control de cuota |
+| `is_template` | Indica si la nota es una plantilla |
+| `word_count` y `reading_time_minutes` | Métricas para UX y búsqueda |
+| `sharing.*` | Sistema de sharing público con slugs y expiración |
+| `locking.*` | Control de edición colaborativa con locks |
+| `attachments_summary.*` | Cache de adjuntos para performance |
+| `audit.*` | Trail completo de auditoría y seguridad |
+
+**Campos de integridad y seguridad:**
+- `content_hash`: Verificación SHA-256 del contenido TipTap
+- `checksum`: Validación MD5 para detección rápida de corrupción
+- `version`: Control de concurrencia para edición colaborativa
+- `sync_status`: Estado de sincronización para soporte offline
+- `audit.*`: IP addresses y tracking de cambios para seguridad
 
 ---
 
 ### Colección: `note_history`
-Historial de cambios por nota.
+Historial de cambios por nota con integridad de datos y auditoría.
 
 **Política de snapshots para controlar costos de Firestore:**
 - Se guarda un **snapshot completo** en la versión 1 y cada 10 versiones.
@@ -244,24 +335,80 @@ Historial de cambios por nota.
   "version": 5,
   "timestamp": "timestamp",
   "is_snapshot": false,
+  "content_hash": "sha256_hash_of_this_version",
   "diff": {
     "added": "nuevo texto",
     "removed": "texto eliminado"
   },
-  "snapshot": null
+  "snapshot": null,
+  "change_summary": "Added paragraph about project timeline",
+  "author_ip": "192.168.1.1",
+  "device_info": "Chrome/Windows Desktop",
+  "merge_conflict_resolved": false,
+  "restore_count": 0,
+  "compression_type": "gzip",
+  "diff_algorithm_version": "1.0"
 }
 ```
 
 ---
 
+### Colección: `audit_logs`
+Sistema completo de auditoría para todos los accesos y cambios en la aplicación.
+
+**Política de retención:**
+- Logs de acceso: 90 días
+- Logs de cambios: 1 año
+- Logs de seguridad: 5 años
+
+```json
+{
+  "id": "audit_id",
+  "user_id": "google_uid",
+  "action": "create|update|delete|read|share|download|login|logout",
+  "resource_type": "note|notebook|attachment|user|theme|invitation",
+  "resource_id": "target_resource_id",
+  "ip_address": "192.168.1.1",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "timestamp": "timestamp",
+  "session_id": "session_123",
+  "changes": {
+    "before": {
+      "title": "Título anterior",
+      "tags": ["antiguo"]
+    },
+    "after": {
+      "title": "Título nuevo",
+      "tags": ["nuevo", "actualizado"]
+    }
+  },
+  "security_context": {
+    "success": true,
+    "error_code": null,
+    "rate_limited": false,
+    "suspicious_activity": false
+  }
+}
+```
+
+> **Importante:** Esta colección es **solo escritura** para la aplicación y **solo lectura** para administradores. No se permite modificación ni eliminación de logs.
+
+---
+
 ### Colección: `themes`
-Temas personalizados del usuario.
+Temas personalizados del usuario con validación de seguridad y sistema de sharing.
 
 ```json
 {
   "id": "theme_id",
   "user_id": "google_uid",
   "name": "Tema oscuro minimalista",
+  "description": "Tema oscuro con acentos púrpura",
+  "is_system": false,
+  "is_public": true,
+  "usage_count": 42,
+  "compatible_version": "2.0+",
+  "preview_image": "https://storage.googleapis.com/.../theme-preview.png",
   "palette": {
     "primary": "#1E1E1E",
     "secondary": "#3A3A3A",
@@ -272,19 +419,44 @@ Temas personalizados del usuario.
   },
   "typography": {
     "font_family": "Inter",
-    "font_size": 14
+    "font_size": 14,
+    "line_height": 1.5
   },
   "layout": {
     "spacing": 8,
     "border_radius": 6
+  },
+  "css_variables": {
+    "--custom-color": "#FF5722",
+    "--custom-shadow": "0 2px 8px rgba(0,0,0,0.2)"
+  },
+  "export_data": {
+    "css": "/* Full CSS for theme sharing */",
+    "json": { /* Theme data for import */ }
+  },
+  "validation": {
+    "css_injection_safe": true,
+    "accessibility_compliant": true,
+    "performance_impact": "low"
+  },
+  "audit": {
+    "created_ip": "192.168.1.1",
+    "last_updated_by": "google_uid",
+    "last_updated_ip": "192.168.1.1"
   }
 }
 ```
 
+> **Seguridad de temas:**
+> - `validation.css_injection_safe`: Verificación automática contra XSS
+> - `css_variables`: Variables CSS permitidas (sandboxed)
+> - `is_system`: Distingue temas del sistema vs usuario
+> - `validation.*`: Checks de seguridad y performance
+
 ---
 
 ### Colección: `attachments`
-Archivos subidos por el usuario.
+Archivos subidos por el usuario con seguridad, optimización y metadata avanzada.
 
 ```json
 {
@@ -296,15 +468,62 @@ Archivos subidos por el usuario.
   "type": "image",
   "mime_type": "image/jpeg",
   "name": "foto.jpg",
+  "original_name": "photo_original.jpg",
   "size_bytes": 204800,
-  "created_at": "timestamp"
+  "file_hash": "sha256_hash_for_deduplication",
+  "virus_scan_status": "pending|clean|infected|quarantine",
+  "is_duplicate_of": "original_file_id",
+  "thumbnail_url": "https://storage.googleapis.com/.../thumbnail.jpg",
+  "compression_ratio": 0.65,
+  "alt_text": "Descripción alternativa para accesibilidad",
+  "extracted_metadata": {
+    "exif": {
+      "camera": "Canon EOS R5",
+      "date_taken": "2024-01-15T10:30:00Z",
+      "gps": { "lat": 40.7128, "lng": -74.0060 }
+    },
+    "pdf_info": {
+      "page_count": 15,
+      "author": "John Doe",
+      "creation_date": "2024-01-10"
+    },
+    "duration_seconds": 180,
+    "dimensions": { "width": 1920, "height": 1080 }
+  },
+  "download_count": 5,
+  "last_accessed_at": "timestamp",
+  "access_control": {
+    "public_access": false,
+    "allowed_users": ["google_uid_2"],
+    "download_permissions": "all|owner|collaborators"
+  },
+  "optimization": {
+    "is_optimized": true,
+    "webp_available": true,
+    "cdn_cached": true,
+    "cache_expires": "timestamp"
+  },
+  "audit": {
+    "created_ip": "192.168.1.1",
+    "last_updated_by": "google_uid",
+    "last_updated_ip": "192.168.1.1"
+  },
+  "created_at": "timestamp",
+  "updated_at": "timestamp"
 }
 ```
+
+> **Seguridad y optimización:**
+> - `file_hash`: Detección de duplicados y verificación de integridad
+> - `virus_scan_status`: Análisis de seguridad obligatorio
+> - `alt_text`: Accesibilidad obligatoria para imágenes
+> - `extracted_metadata`: Información extraída para búsqueda y analytics
+> - `download_count`: Métricas de uso y control de abusos
 
 ---
 
 ### Colección: `invitations`
-Invitaciones para compartir notas con otros usuarios.
+Invitaciones para compartir notas con otros usuarios con control de seguridad y expiración.
 
 ```json
 {
@@ -312,15 +531,261 @@ Invitaciones para compartir notas con otros usuarios.
   "note_id": "note_id",
   "invited_by_uid": "google_uid",
   "invited_email": "colaborador@example.com",
-  "permission": "edit",
-  "status": "pending",
+  "invitation_token": "secure_token_abc123",
+  "permission": "view|edit|comment",
+  "status": "pending|accepted|rejected|revoked|expired",
+  "message": "¡Hola! Me gustaría compartir esta nota contigo para que colaboremos en el proyecto.",
+  "expires_at": "timestamp",
+  "max_uses": 1,
+  "use_count": 0,
+  "group_invite": false,
+  "accepted_ip": "192.168.1.1",
+  "accepted_user_agent": "Mozilla/5.0...",
+  "security": {
+    "rate_limited": false,
+    "suspicious_activity": false,
+    "abuse_detected": false
+  },
+  "audit": {
+    "created_ip": "192.168.1.1",
+    "last_updated_by": "google_uid",
+    "last_updated_ip": "192.168.1.1"
+  },
   "created_at": "timestamp",
+  "updated_at": "timestamp",
   "accepted_at": null
 }
 ```
 
-> Valores de `permission`: `view` (solo lectura) | `edit` (lectura y escritura).
-> Valores de `status`: `pending` | `accepted` | `rejected` | `revoked`.
+> **Valores de `permission`:**
+> - `view`: Solo lectura
+> - `edit`: Lectura y escritura
+> - `comment`: Lectura y comentarios (sin editar)
+> 
+> **Valores de `status`:**
+> - `pending`: Esperando respuesta
+> - `accepted`: Invitación aceptada
+> - `rejected`: Invitación rechazada
+> - `revoked`: Invitación cancelada por el creador
+> - `expired`: Invitación expiró por tiempo
+> 
+> **Seguridad:**
+> - `invitation_token`: Token seguro único para cada invitación
+> - `expires_at`: Expiración automática para seguridad
+> - `max_uses`: Control de usos (single-use por defecto)
+> - `security.*`: Detección de abusos y actividad sospechosa
+
+---
+
+## Índices Críticos de Performance
+
+### Índices Compuestos Requeridos
+
+Para garantizar un rendimiento óptimo con el modelo de datos mejorado, se requieren los siguientes índices compuestos en Firestore:
+
+```javascript
+// Índices primarios para queries frecuentes
+db.collection('notes').createIndex({ 'user_id': 1, 'updated_at': -1 });
+db.collection('notes').createIndex({ 'user_id': 1, 'tags': 1, 'updated_at': -1 });
+db.collection('notes').createIndex({ 'user_id': 1, 'is_pinned': 1, 'updated_at': -1 });
+db.collection('notes').createIndex({ 'notebook_id': 1, 'updated_at': -1 });
+db.collection('notes').createIndex({ 'user_id': 1, 'sync_status': 1 });
+
+// Índices para búsqueda y filtrado
+db.collection('notes').createIndex({ 'user_id': 1, 'word_count': 1 });
+db.collection('notes').createIndex({ 'user_id': 1, 'is_template': 1 });
+db.collection('notes').createIndex({ 'sharing.public_slug': 1, 'sharing.public_access_expires': 1 });
+
+// Índices para historial y auditoría
+db.collection('note_history').createIndex({ 'note_id': 1, 'version': -1 });
+db.collection('note_history').createIndex({ 'user_id': 1, 'timestamp': -1 });
+db.collection('audit_logs').createIndex({ 'user_id': 1, 'timestamp': -1 });
+db.collection('audit_logs').createIndex({ 'resource_type': 1, 'resource_id': 1, 'timestamp': -1 });
+
+// Índices para adjuntos y storage
+db.collection('attachments').createIndex({ 'user_id': 1, 'created_at': -1 });
+db.collection('attachments').createIndex({ 'file_hash': 1 });
+db.collection('attachments').createIndex({ 'note_id': 1, 'created_at': -1 });
+
+// Índices para notebooks
+db.collection('notebooks').createIndex({ 'user_id': 1, 'parent_notebook_id': 1 });
+db.collection('notebooks').createIndex({ 'user_id': 1, 'is_favorite': 1, 'sort_order': 1 });
+
+// Índices para invitations
+db.collection('invitations').createIndex({ 'invited_email': 1, 'status': 1 });
+db.collection('invitations').createIndex({ 'invitation_token': 1 });
+db.collection('invitations').createIndex({ 'expires_at': 1 });
+```
+
+### Estrategia de Optimización de Queries
+
+1. **Pagination**: Todas las listas deben usar `limit()` y `startAfter()`
+2. **Caching**: Resultados frecuentes cacheados por 5 minutos
+3. **Denormalization**: Campos como `attachment_count` y `word_count` pre-calculados
+4. **Compound Queries**: Usar índices compuestos para filtros múltiples
+5. **Result Streaming**: Para datasets grandes (>1000 documentos)
+
+---
+
+## Estrategia de Validación TipTap
+
+### Schema Versioning y Validación
+
+El contenido TipTap debe seguir un schema estricto con versioning para soportar migraciones y validación:
+
+```typescript
+interface TipTapDocumentV2 {
+  schema_version: "2.0";
+  type: "doc";
+  content: TipTapNode[];
+  metadata?: {
+    word_count: number;
+    character_count: number;
+    last_hash: string;
+    created_with: "AppNotesBG v1.0";
+  };
+}
+
+// Validaciones de seguridad obligatorias
+const TipTapValidationRules = {
+  max_document_size: 5 * 1024 * 1024, // 5MB
+  max_nested_levels: 50,
+  max_text_length: 1000000, // 1M caracteres
+  forbidden_tags: ['script', 'iframe', 'object', 'embed', 'form'],
+  forbidden_attributes: ['onclick', 'onload', 'onerror', 'src'],
+  required_sanitization: true,
+  schema_validation: true
+};
+```
+
+### Proceso de Validación
+
+1. **Entrada**: Validar schema y tamaño antes de persistir
+2. **Sanitización**: DOMPurify para remover contenido malicioso
+3. **Hash Verification**: Calcular SHA-256 para integridad
+4. **Schema Migration**: Actualizar a versión actual si es necesario
+5. **Metadata Extraction**: Calcular word_count, character_count
+6. **Storage**: Persistir con schema_version y metadata
+
+### Extensiones Habilitadas y Validación
+
+```typescript
+const TipTapExtensions = {
+  // Core extensions (validadas)
+  StarterKit: {
+    Document: { max_depth: 50 },
+    Text: { max_length: 100000 },
+    Paragraph: { max_children: 100 },
+    Heading: { levels: [1, 2, 3, 4, 5, 6] },
+    BulletList: { max_items: 1000 },
+    OrderedList: { max_items: 1000 },
+    Blockquote: { max_depth: 10 },
+    CodeBlock: { max_lines: 1000 }
+  },
+  
+  // Media extensions (con validación)
+  Image: {
+    max_size: 10 * 1024 * 1024, // 10MB
+    allowed_types: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    required_alt: true
+  },
+  
+  // Task extensions (validadas)
+  TaskList: { max_items: 500 },
+  TaskItem: { max_text_length: 1000 },
+  
+  // Code extensions (validadas)
+  CodeBlockLowlight: {
+    max_lines: 1000,
+    allowed_languages: ['javascript', 'typescript', 'python', 'java', 'cpp', 'html', 'css', 'json', 'markdown']
+  },
+  
+  // Link extensions (validadas)
+  Link: {
+    allowed_protocols: ['http', 'https', 'mailto', 'tel'],
+    max_url_length: 2048,
+    require_rel_nofollow: true
+  }
+};
+```
+
+---
+
+## Políticas de Seguridad
+
+### Rate Limiting y Control de Abusos
+
+```typescript
+const SecurityPolicies = {
+  // Rate limiting por endpoint
+  rate_limits: {
+    auth_attempts: { max: 5, window: '1m', per_ip: true },
+    note_creation: { max: 100, window: '1m', per_user: true },
+    file_upload: { max: 20, window: '1m', per_user: true },
+    invitation_creation: { max: 10, window: '1m', per_user: true },
+    search_queries: { max: 1000, window: '1h', per_user: true }
+  },
+  
+  // Validaciones de integridad
+  integrity_checks: {
+    sha256_verification: true,
+    checksum_validation: true,
+    schema_versioning: true,
+    audit_trail_required: true
+  },
+  
+  // Control de acceso
+  access_control: {
+    session_timeout: 3600, // 1 hora
+    ip_based_detection: true,
+    suspicious_activity_threshold: 10,
+    account_lockout_attempts: 5,
+    two_factor_optional: true
+  },
+  
+  // Validaciones de contenido
+  content_validation: {
+    max_note_size: 5 * 1024 * 1024, // 5MB
+    max_attachment_size: 10 * 1024 * 1024, // 10MB
+    virus_scanning_required: true,
+    content_sanitization: true,
+    forbidden_patterns: [
+      /<script[^>]*>.*?<\/script>/gi,
+      /javascript:/gi,
+      /on\w+\s*=/gi
+    ]
+  }
+};
+```
+
+### Auditoría y Logging
+
+```typescript
+const AuditRequirements = {
+  // Eventos obligatorios de auditar
+  mandatory_events: [
+    'user.login', 'user.logout', 'user.register',
+    'note.create', 'note.update', 'note.delete', 'note.read',
+    'attachment.upload', 'attachment.download',
+    'invitation.create', 'invitation.accept',
+    'sharing.public', 'sharing.revoke'
+  ],
+  
+  // Retención de logs
+  retention_policies: {
+    access_logs: '90 days',
+    change_logs: '1 year',
+    security_logs: '5 years',
+    audit_logs: '7 years'
+  },
+  
+  // Campos obligatorios en audit logs
+  required_fields: [
+    'user_id', 'action', 'resource_type', 'resource_id',
+    'ip_address', 'user_agent', 'timestamp', 'success'
+  ]
+};
+```
 
 ---
 

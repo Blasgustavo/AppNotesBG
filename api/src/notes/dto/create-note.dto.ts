@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsObject, IsNumber, IsBoolean, ValidateNested, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsObject, IsNumber, IsBoolean, ValidateNested, IsEnum, IsEmail, Min, Max, Length, Matches } from 'class-validator';
 import { TipTapDocument } from '../../../../shared/types/tiptap.types';
 
 export class TipTapContentDto {
@@ -63,6 +63,8 @@ export class CollaboratorDto {
 
 export class CreateNoteDto {
   @IsString()
+  @Length(1, 200, { message: 'Title must be between 1 and 200 characters' })
+  @Matches(/^[^<>]*$/, { message: 'Title cannot contain HTML tags' })
   title!: string;
 
   @IsObject()
@@ -70,10 +72,12 @@ export class CreateNoteDto {
   content!: TipTapDocument;
 
   @IsString()
+  @Matches(/^[a-zA-Z0-9_-]+$/, { message: 'Invalid notebook ID format' })
   notebook_id!: string;
 
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
   tags?: string[];
 
   @IsOptional()
@@ -95,4 +99,39 @@ export class CreateNoteDto {
   @IsOptional()
   @IsBoolean()
   is_pinned?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-fA-F0-9]{64}$/, { message: 'Content hash must be a valid SHA-256 hash' })
+  content_hash?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-fA-F0-9]{32}$/, { message: 'Checksum must be a valid MD5 hash' })
+  checksum?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  version?: number;
+
+  @IsOptional()
+  @IsEnum(['synced', 'pending', 'conflict'])
+  sync_status?: 'synced' | 'pending' | 'conflict';
+
+  @IsOptional()
+  @IsBoolean()
+  is_template?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_-]+$/, { message: 'Invalid template ID format' })
+  template_id?: string;
+}
+
+export class UpdateNoteDto extends CreateNoteDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  version!: number;
 }
