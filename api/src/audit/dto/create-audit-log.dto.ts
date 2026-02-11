@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsObject, IsNumber, IsEmail, IsBoolean, Min, Max, Matches } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsObject, IsNumber, IsBoolean, Min, Matches, Length } from 'class-validator';
 
 export class CreateAuditLogDto {
   @IsString()

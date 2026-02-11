@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsArray, IsObject, IsNumber, IsBoolean, ValidateNested, IsEnum, IsEmail, Min, Max, Length, Matches } from 'class-validator';
-import { TipTapDocument } from '../../../../shared/types/tiptap.types';
+import { IsString, IsOptional, IsArray, IsObject, IsNumber, IsBoolean, ValidateNested, IsEnum, Min, Length, Matches } from 'class-validator';
+import type { TipTapDocument } from '../../../../shared/types/tiptap.types';
 
 export class TipTapContentDto {
   @IsString()
@@ -133,5 +133,5 @@ export class UpdateNoteDto extends CreateNoteDto {
   @IsOptional()
   @IsNumber()
   @Min(1)
-  version!: number;
+  declare version: number;
 }
