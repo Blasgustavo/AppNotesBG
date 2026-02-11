@@ -1,8 +1,9 @@
-// Interfaces que coinciden con TipTap JSON para mantener consistencia con frontend signals
+// TipTap JSON types — compartido entre frontend y backend
+// Compatible con ProseMirror/Tiptap 2+
 
 export interface TipTapDocument {
   type: 'doc';
-  content: TipTapNode[];
+  content?: TipTapNode[];
 }
 
 export interface TipTapNode {
@@ -56,7 +57,7 @@ export interface TipTapLinkMark extends TipTapMark {
   };
 }
 
-// Utilidad para validar que un objeto es TipTap JSON válido
+// Utilities
 export function isValidTipTapDocument(obj: any): obj is TipTapDocument {
   return obj && 
          obj.type === 'doc' && 
@@ -64,7 +65,6 @@ export function isValidTipTapDocument(obj: any): obj is TipTapDocument {
          obj.content.length >= 0;
 }
 
-// Utilidad para extraer texto plano del TipTap JSON (para Algolia)
 export function extractTextFromTipTap(node: TipTapNode): string {
   if (node.type === 'text' && (node as TipTapTextNode).text) {
     return (node as TipTapTextNode).text || '';

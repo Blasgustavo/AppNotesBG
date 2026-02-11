@@ -71,6 +71,8 @@ AGENTS.md            → Este archivo — orquestador global
 | search-agent | `AppNotesBG-agents/search-agent.md` | Busqueda | Indexacion y busqueda full-text con Algolia |
 | auth-agent | `AppNotesBG-agents/auth-agent.md` | Autenticacion | Login Google, validacion tokens, onboarding |
 | ai-agent | `AppNotesBG-agents/ai-agent.md` | IA | Resumenes, sugerencias de tags con Gemini |
+| themes-agent | `AppNotesBG-agents/themes-agent.md` | Temas | CRUD temas personalizados, aplicación y preview |
+| reminder-agent | `AppNotesBG-agents/reminder-agent.md` | Recordatorios | Crear, editar, cancelar recordatorios + Cloud Functions |
 | infra-agent | `AppNotesBG-agents/infra-agent.md` | Infraestructura | Reglas Firestore/Storage, Cloud Functions |
 
 ## Tabla de subagentes compartidos
@@ -78,6 +80,8 @@ AGENTS.md            → Este archivo — orquestador global
 | Subagente | Archivo | Invocado por | Responsabilidad |
 |---|---|---|---|
 | state-manager | `AppNotesBG-subagents/shared/state-manager.md` | Todos los agentes frontend | Estado reactivo Angular Signals: AuthState, NotesState, EditorState, UiState |
+| theme-manager | `AppNotesBG-subagents/themes/theme-manager.md` | themes-agent | CRUD temas personalizados + CSS custom properties |
+| reminder-scheduler | `AppNotesBG-subagents/reminders/reminder-scheduler.md` | reminder-agent | CRUD recordatorios + sincronización con Cloud Functions |
 
 ---
 
@@ -139,6 +143,12 @@ AGENTS.md (Orquestador)
 │   ├── Resumenes de notas           → summarizer.md
 │   └── Sugerencia de tags           → tag-suggester.md
 │
+├── themes-agent
+│   └── Gestión completa            → theme-manager.md
+│
+├── reminder-agent
+│   └── CRUD + Cloud Functions    → reminder-scheduler.md
+│
 └── infra-agent
     ├── Reglas Firestore             → firestore-rules.md
     └── Reglas Storage               → storage-rules.md
@@ -167,6 +177,8 @@ AGENTS.md (Orquestador)
 | Error durante generacion | [meta] | error-handler → sync-agents |
 | Commit / push / PR | [meta] | git-workflow |
 | Error Firebase Auth/Firestore | auth-agent / infra-agent | token-validator / firestore-rules |
+| Gestionar temas | themes-agent | theme-manager |
+| Gestionar recordatorios | reminder-agent | reminder-scheduler |
 
 ---
 
@@ -215,3 +227,4 @@ Modelo de datos completo: ver seccion "Modelo de datos" en `NEGOCIO.md`
 | 2026-02-11 | Agregado Angular Signals a tabla de stack | AppNotesBG setup |
 | 2026-02-11 | Agregado routing para errores Firebase Auth/Firestore | AppNotesBG setup |
 | 2026-02-11 | Agregada tabla de subagentes compartidos con state-manager | AppNotesBG setup |
+| 2026-02-11 | Agregados themes-agent y reminder-agent con sus subagentes | AppNotesBG setup |

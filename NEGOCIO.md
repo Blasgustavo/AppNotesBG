@@ -10,7 +10,7 @@ Aplicación de notas moderna inspirada en Evernote, Notion, AppFlowy y otros. In
 - Angular 21
 - Angular Material (opcional)
 - Firebase Web SDK (Auth, Firestore, Storage)
-- RxJS para flujos reactivos
+- **Angular Signals** para estado reactivo + RxJS para streams HTTP
 - TailwindCSS
 - **TipTap** (editor de texto enriquecido, basado en ProseMirror)
 - **DOMPurify** (sanitización de contenido HTML)
@@ -37,13 +37,15 @@ Descripción: Aplicación principal de notas, UI, módulos de usuario, notas e h
 ```
 └── /AppNotesBG
     └── /src
-        └── /modules
-            └── /notes
-            └── /notebooks
-            └── /history
-            └── /auth
-            └── /search
-            └── /themes
+        └── /app
+            └── /core
+                └── /state            ← Servicios de estado por dominio (auth, notes, editor, ui)
+            └── /shared
+                └── /types            ← Modelos de datos (note.model.ts)
+                └── /services
+                └── /components
+            └── /modules (por crear)
+            └── /routes
 ```
 
 api — Backend NestJS
@@ -153,6 +155,7 @@ Libretas que agrupan notas. El usuario puede crear múltiples libretas.
   "name": "Trabajo",
   "icon": "briefcase",
   "color": "#2196F3",
+  "parent_notebook_id": "parent_notebook_id",  // null para nivel raíz
   "created_at": "timestamp",
   "updated_at": "timestamp",
   "is_default": false,
@@ -652,7 +655,7 @@ firebase deploy --only functions
 
 ---
 
-## Estado actual del proyecto (100%)
+## Estado actual del proyecto (En progreso)
 
 ### ✅ Completado — Documentación y arquitectura
 
@@ -672,10 +675,11 @@ firebase deploy --only functions
 |---|---|---|
 | **Git** | ✅ Conventional Commits + Gitmoji | `skills/AppNotesBG-meta/git-workflow.md` |
 | **TypeScript** | ✅ Strict mode + prevención undefined | `error-patterns/typescript-undefined.md` |
-| **Angular/RxJS** | ✅ Memory leaks prevention | `error-patterns/angular-rxjs-memory-leaks.md` |
+| **Angular** | ✅ Signals + control flow + computed/effect patterns | `skills/AppNotesBG-meta/coding-standards/angular.md` |
+| **RxJS** | ✅ Memory leaks prevention | `error-patterns/angular-rxjs-memory-leaks.md` |
 | **ESLint** | ✅ Rules + fix patterns | `error-patterns/eslint-rules.md` |
 | **Firestore Rules** | ✅ Principios + templates | `error-patterns/firestore-rules-errors.md` |
-| **API Security** | ✅ FirebaseAuthGuard + rate limiting | `AGENTS.md` + `auth-agent.md` |
+| **API Security** | ✅ ValidationPipe + CORS + FirebaseAuthGuard + ThrottlerGuard | `AGENTS.md` + `auth-agent.md` |
 
 ### 🔄 Sistema de aprendizaje acumulativo
 
@@ -693,7 +697,9 @@ firebase deploy --only functions
 | **Error patterns** | 4 | typescript-undefined, eslint-rules, firestore-rules-errors, angular-rxjs-memory-leaks |
 | **Agentes** | 5 | notes-agent, search-agent, auth-agent, ai-agent, infra-agent |
 | **Subagentes** | 8 | note-creator, note-editor, note-history, algolia-indexer, token-validator, summarizer, tag-suggester, firestore-rules, storage-rules |
-| **Total** | **22** | **Arquitectura completa y lista para desarrollo** |
+| **Total** | **26** | **Arquitectura completa y lista para desarrollo** |
+| **Shared types** | 1 | tiptap.types.ts (TipTap interfaces compartidas entre frontend y backend) |
+| **Core state services** | 4 | auth-state.service.ts, notes-state.service.ts, editor-state.service.ts, ui-state.service.ts |
 
 ### 🎯 Próximos pasos de desarrollo
 

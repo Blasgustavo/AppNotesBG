@@ -1,4 +1,6 @@
 import { signal, Signal } from '@angular/core';
+import { Timestamp } from '@angular/fire/firestore';
+import { TipTapDocument, TipTapNode } from '../../../../shared/types/tiptap.types';
 
 // Interfaces principales del modelo de datos
 export interface Note {
@@ -60,10 +62,8 @@ export interface Attachment {
   created_at: Timestamp;
 }
 
-export interface TipTapJSON {
-  type: 'doc';
-  content: any[]; // TipTap content nodes
-}
+// Alias para mantener compatibilidad con el código existente
+export type TipTapJSON = TipTapDocument;
 
 export interface Collaborator {
   user_id: string;
@@ -83,24 +83,7 @@ export interface NoteFont {
   line_height: number;
 }
 
-export interface Timestamp {
-  seconds: number;
-  nanos: number;
-}
+// Firebase Timestamp importado desde @angular/fire/firestore arriba
 
-// Signals para estado reactivo
-export interface AppState {
-  currentUser: Signal<User | null>;
-  currentNotebook: Signal<Notebook | null>;
-  notes: Signal<Note[]>;
-  isLoading: Signal<boolean>;
-  error: Signal<string | null>;
-  selectedNote: Signal<Note | null>;
-}
-
-export interface EditorState {
-  content: Signal<TipTapJSON>;
-  isDirty: Signal<boolean>;
-  selectedAttachments: Signal<Attachment[]>;
-  collaborators: Signal<Collaborator[]>;
-}
+// Eliminado: AppState y EditorState están obsoletas tras la división en 4 servicios de estado
+// Ver AppNotesBG/src/app/core/state/ para los servicios de dominio: AuthStateService, NotesStateService, EditorStateService, UiStateService

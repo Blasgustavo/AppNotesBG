@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsArray, IsObject, IsNumber, IsBoolean, ValidateNested, IsEnum } from 'class-validator';
+import { TipTapDocument } from '../../../../shared/types/tiptap.types';
 
 export class TipTapContentDto {
   @IsString()
@@ -66,7 +67,7 @@ export class CreateNoteDto {
 
   @IsObject()
   @ValidateNested()
-  content!: TipTapContentDto;
+  content!: TipTapDocument;
 
   @IsString()
   notebook_id!: string;
