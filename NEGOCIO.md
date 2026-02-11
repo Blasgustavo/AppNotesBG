@@ -1120,7 +1120,7 @@ firebase deploy --only functions
 
 ---
 
-## Estado actual del proyecto (En progreso)
+## Estado actual del proyecto
 
 ### ✅ Completado — Documentación y arquitectura
 
@@ -1146,6 +1146,73 @@ firebase deploy --only functions
 | **Firestore Rules** | ✅ Principios + templates | `error-patterns/firestore-rules-errors.md` |
 | **API Security** | ✅ ValidationPipe + CORS + FirebaseAuthGuard + ThrottlerGuard | `AGENTS.md` + `auth-agent.md` |
 
+### ✅ Completado — Infraestructura base (2026-02-11)
+
+| Componente | Estado | Detalles |
+|---|---|---|
+| **Proyecto Firebase** | ✅ Creado | `appnotesbg-app` — Auth (Google), Firestore y Storage habilitados |
+| **Firebase CLI** | ✅ v15.5.1 | Instalado y vinculado al proyecto |
+| **@angular/fire** | ✅ v20.0.1 | Instalado; provideFirebaseApp, provideAuth, provideFirestore (offline persistence), provideStorage |
+| **environment.ts** | ✅ Completo | `AppNotesBG/src/environments/environment.ts` y `environment.prod.ts` con config Firebase y Algolia |
+| **AppModule Angular** | ✅ Actualizado | Firebase providers + HttpClient + RouterOutlet |
+| **ConfigModule NestJS** | ✅ Global | Carga `.env` globalmente vía ConfigService |
+| **FirebaseAdminModule** | ✅ Global | Inicializa Firebase Admin SDK; usa `service-account.json` en dev, env vars en prod |
+| **FirebaseAuthGuard** | ✅ Listo | Valida Bearer token en cada request; expone `req.user` (DecodedIdToken) |
+| **.env + .env.example** | ✅ Creados | `api/.env` con credenciales; `api/.env.example` como plantilla |
+| **service-account.json** | ✅ En .gitignore | Clave privada del service account protegida |
+
+### ✅ Completado — Módulo de autenticación (2026-02-11)
+
+| Componente | Estado | Detalles |
+|---|---|---|
+| **AuthService (Angular)** | ✅ Completo | `loginWithGoogle()` via signInWithPopup, `logout()`, `getIdToken()` |
+| **LoginComponent** | ✅ Completo | UI Tailwind con botón Google, spinner y manejo de errores. Standalone |
+| **authGuard / publicGuard** | ✅ Completos | `CanActivateFn` — protege rutas autenticadas y redirige si ya hay sesión |
+| **Routing Angular** | ✅ Configurado | `/login` (publicGuard) y `/` (authGuard) con lazy loading |
+| **AuthController NestJS** | ✅ Completo | `POST /api/v1/auth/me` protegido con FirebaseAuthGuard |
+| **AuthService NestJS** | ✅ Completo | Crea usuario completo en Firestore en primer login + libreta por defecto; actualiza sesión en logins recurrentes |
+| **AuthModule NestJS** | ✅ Registrado | Registrado en AppModule |
+
+### Flujo de autenticación implementado
+
+```
+Usuario → clic "Continuar con Google"
+  → Firebase signInWithPopup
+  → obtiene ID token
+  → POST /api/v1/auth/me (Bearer token)
+    → NestJS: FirebaseAuthGuard.verifyIdToken()
+    → AuthService.loginOrRegister()
+      → Primer login: crea users/{uid} + notebook "Mi libreta"
+      → Login recurrente: actualiza last_login_at, login_count, avatar_url
+  → AuthStateService.setUser(perfil)
+  → Router navega a /
+```
+
+### 📋 Estadísticas de implementación
+
+| Categoría | Cantidad | Archivos clave |
+|---|---|---|
+| **Meta-skills** | 4 | create-skill, sync-agents, error-handler, git-workflow |
+| **Error patterns** | 4 | typescript-undefined, eslint-rules, firestore-rules-errors, angular-rxjs-memory-leaks |
+| **Agentes** | 5 | notes-agent, search-agent, auth-agent, ai-agent, infra-agent |
+| **Subagentes** | 8 | note-creator, note-editor, note-history, algolia-indexer, token-validator, summarizer, tag-suggester, firestore-rules, storage-rules |
+| **Core state services** | 4 | auth-state, notes-state, editor-state, ui-state |
+| **Shared types** | 1 | tiptap.types.ts |
+| **Guards Angular** | 2 | authGuard, publicGuard |
+| **Módulos NestJS** | 1 | AuthModule |
+
+### 🎯 Próximos pasos de desarrollo (MVP)
+
+| Prioridad | Feature | Agente responsable |
+|---|---|---|
+| 1 | CRUD de notas (crear, editar, archivar, eliminar) | notes-agent → note-creator, note-editor |
+| 2 | Libretas (notebooks) — listar, crear, seleccionar | notes-agent → note-creator |
+| 3 | Tags — etiquetar notas y filtrar | notes-agent → note-editor |
+| 4 | Historial de versiones | notes-agent → note-history |
+| 5 | Búsqueda full-text con Algolia | search-agent → algolia-indexer |
+| 6 | Temas light/dark | themes-agent → theme-manager |
+| 7 | Adjuntos (imágenes/PDFs) | notes-agent → note-creator |
+
 ### 🔄 Sistema de aprendizaje acumulativo
 
 | Sistema | Flujo | Resultado |
@@ -1154,22 +1221,10 @@ firebase deploy --only functions
 | **Skills creation** | Nuevo dominio → `create-skill.md` → nuevo agente/subagente → `sync-agents.md` | Agregado sin romper arquitectura |
 | **Knowledge base** | `coding-standards/<tech>.md` se crea gradualmente | Convenciones crecen según necesidades reales |
 
-### 📋 Estadísticas de implementación
+### Historial de cambios de estado
 
-| Categoría | Cantidad | Archivos |
+| Fecha | Hito | Commit |
 |---|---|---|
-| **Meta-skills** | 4 | create-skill, sync-agents, error-handler, git-workflow |
-| **Error patterns** | 4 | typescript-undefined, eslint-rules, firestore-rules-errors, angular-rxjs-memory-leaks |
-| **Agentes** | 5 | notes-agent, search-agent, auth-agent, ai-agent, infra-agent |
-| **Subagentes** | 8 | note-creator, note-editor, note-history, algolia-indexer, token-validator, summarizer, tag-suggester, firestore-rules, storage-rules |
-| **Total** | **26** | **Arquitectura completa y lista para desarrollo** |
-| **Shared types** | 1 | tiptap.types.ts (TipTap interfaces compartidas entre frontend y backend) |
-| **Core state services** | 4 | auth-state.service.ts, notes-state.service.ts, editor-state.service.ts, ui-state.service.ts |
-
-### 🎯 Próximos pasos de desarrollo
-
-1. **Iniciar MVP:** Leer `AGENTS.md` → `error-patterns/` → codificar primer feature (ej: `notes-agent` + `note-creator.md`)
-2. **Primer error:** El sistema lo detectará → creará el primer `coding-standards/<tech>.md` automáticamente
-3. **Iteración:** Cada feature nuevo usa los skills correspondientes, el sistema aprende de cada error
-
-**La arquitectura está lista para escalar desde el primer día de desarrollo.**
+| 2026-02-10 | Documentación y arquitectura completa | `57966a2` |
+| 2026-02-11 | Infraestructura base Firebase + environments | `b0e2bc7` |
+| 2026-02-11 | Módulo de autenticación completo | `ad0f362` |
