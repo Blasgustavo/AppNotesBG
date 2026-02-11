@@ -1,16 +1,13 @@
-import { Component, signal, computed, OnInit, input, output, EventEmitter, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, signal, computed, OnInit, OnDestroy, input, output, inject, effect } from '@angular/core';
 import { Editor } from '@tiptap/core';
 import { StarterKit } from '@tiptap/starter-kit';
-import { Document } from '@tiptap/extension-document';
-import { Text } from '@tiptap/extension-text';
-import { Paragraph } from '@tiptap/extension-paragraph';
 import { TipTapJSON } from '../../types/note.model';
+import { EditorStateService } from '../../../core/state/editor-state.service';
 
 @Component({
   selector: 'app-note-editor',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div class="note-editor">
       <h2>{{ title() }}</h2>
@@ -27,9 +24,9 @@ import { TipTapJSON } from '../../types/note.model';
       <!-- TipTap editor placeholder -->
       <div class="editor-content" #editorElement>
         <!-- El editor se inicializará aquí -->
-        <p *ngIf="!isEditorReady()">
-          Cargando editor...
-        </p>
+        @if (!isEditorReady()) {
+          <p>Cargando editor...</p>
+        }
       </div>
       
       <!-- Status signals -->
@@ -127,14 +124,14 @@ import { TipTapJSON } from '../../types/note.model';
     }
   `]
 })
-export class NoteEditorComponent implements OnInit {
+export class NoteEditorComponent implements OnInit, OnDestroy {
   // Input signals
   initialContent = input<TipTapJSON>({ type: 'doc', content: [] });
   readonly = input(false);
   
-  // Output events
-  contentChange = new EventEmitter<TipTapJSON>();
-  save = new EventEmitter<{ title: string; content: TipTapJSON }>();
+  // Fix error 4: output<T>() en lugar de new EventEmitter<T>() (Angular 17+)
+  contentChange = output<TipTapJSON>();
+  save = output<{ title: string; content: TipTapJSON }>();
   
   // Internal signals
   private editor = signal<Editor | null>(null);
@@ -153,22 +150,29 @@ export class NoteEditorComponent implements OnInit {
     return this.extractPlainText(this.content()).length;
   });
   
-  private stateService = inject(StateService);
-  
-  ngOnInit(): void {
-    this.initializeEditor();
-    this.syncWithStateService();
+  private readonly editorState = inject(EditorStateService);
+
+  constructor() {
+    // Fix error 3: effect() en lugar de .subscribe() en un Signal
+    // NUNCA usar .subscribe() en Signals — usar effect() para efectos secundarios
+    effect(() => {
+      const newContent = this.editorState.editorContent();
+      if (this.editor() && !this.isDirty()) {
+        this.editor()!.commands.setContent(newContent);
+      }
+    });
   }
-  
+
+  ngOnInit(): void {
+    this.content.set(this.editorState.editorContent());
+    this.initializeEditor();
+  }
+
   private initializeEditor(): void {
+    // Fix error 7: Document, Text y Paragraph ya estan incluidos en StarterKit
+    // No pasar instancias de extension como config — StarterKit los incluye por defecto
     const editor = new Editor({
-      extensions: [
-        StarterKit.configure({
-          document: Document,
-          text: Text,
-          paragraph: Paragraph,
-        }),
-      ],
+      extensions: [StarterKit],
       content: this.initialContent(),
       editable: !this.readonly(),
       onUpdate: () => {
@@ -179,20 +183,9 @@ export class NoteEditorComponent implements OnInit {
         }
       },
     });
-    
+
     this.editor.set(editor);
     this.isEditorReady.set(true);
-  }
-  
-  private syncWithStateService(): void {
-    // Sincronizar con el servicio de estado global
-    this.content.set(this.stateService.editorContent());
-    
-    this.stateService.editorContent.subscribe(newContent => {
-      if (this.editor() && !this.isDirty()) {
-        this.editor()!.commands.setContent(newContent);
-      }
-    });
   }
   
   private setContent(newContent: TipTapJSON): void {
@@ -202,12 +195,12 @@ export class NoteEditorComponent implements OnInit {
   
   private markDirty(): void {
     this.isDirty.set(true);
-    this.stateService.markEditorDirty();
+    this.editorState.markDirty();
   }
-  
+
   private markClean(): void {
     this.isDirty.set(false);
-    this.stateService.markEditorClean();
+    this.editorState.markClean();
   }
   
   onTitleChange(event: Event): void {

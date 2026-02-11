@@ -106,6 +106,7 @@ En caso de error:
 | `note-creator.md` | Crear nota, crear libreta, subir adjunto, eliminar nota/libreta |
 | `note-editor.md` | Editar titulo, contenido, tags, estilo, archivar, restaurar de papelera |
 | `note-history.md` | Consultar historial de versiones, restaurar version anterior |
+| `shared/state-manager.md` | Cualquier operacion que lea/escriba estado Angular Signals en el frontend |
 
 ---
 
@@ -124,3 +125,4 @@ En caso de error:
 | Fecha | Cambio |
 |---|---|
 | 2026-02-10 | Creacion inicial |
+| 2026-02-11 | Agregado subagente state-manager.md para estado Angular Signals |

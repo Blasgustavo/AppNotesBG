@@ -21,6 +21,13 @@ Referencia completa del negocio: `NEGOCIO.md`
 7. Nunca exponer `user_id` en respuestas publicas de la API.
 8. Todo endpoint de NestJS requiere `FirebaseAuthGuard`.
 9. Sanitizar contenido HTML con **DOMPurify** en el frontend antes de renderizar.
+10. Usar siempre Angular Signals para estado reactivo en el frontend:
+    - `signal()` → estado mutable
+    - `computed()` → derivaciones (NUNCA Signal manual actualizado en multiples lugares)
+    - `effect()` → efectos secundarios (NUNCA `.subscribe()` en Signals)
+    - `input()` → inputs de componente (NUNCA decorator `@Input()`)
+    - `output()` → outputs de componente (NUNCA `new EventEmitter()`)
+    - `@if` / `@for` / `@switch` → control flow moderno (NUNCA `*ngIf` / `*ngFor`)
 
 ---
 
@@ -37,6 +44,7 @@ Referencia completa del negocio: `NEGOCIO.md`
 | Storage | Firebase Storage | SDK 10+ |
 | Busqueda | Algolia | v4 |
 | IA | Google Gemini API | v1 |
+| Estado reactivo | Angular Signals | 16+ |
 | Testing Frontend | Angular Testing Library + Jest | - |
 | Testing Backend | Jest + Supertest | - |
 | E2E | Playwright | - |
@@ -64,6 +72,12 @@ AGENTS.md            → Este archivo — orquestador global
 | auth-agent | `AppNotesBG-agents/auth-agent.md` | Autenticacion | Login Google, validacion tokens, onboarding |
 | ai-agent | `AppNotesBG-agents/ai-agent.md` | IA | Resumenes, sugerencias de tags con Gemini |
 | infra-agent | `AppNotesBG-agents/infra-agent.md` | Infraestructura | Reglas Firestore/Storage, Cloud Functions |
+
+## Tabla de subagentes compartidos
+
+| Subagente | Archivo | Invocado por | Responsabilidad |
+|---|---|---|---|
+| state-manager | `AppNotesBG-subagents/shared/state-manager.md` | Todos los agentes frontend | Estado reactivo Angular Signals: AuthState, NotesState, EditorState, UiState |
 
 ---
 
@@ -152,6 +166,7 @@ AGENTS.md (Orquestador)
 | Sincronizar arbol de skills | [meta] | sync-agents |
 | Error durante generacion | [meta] | error-handler → sync-agents |
 | Commit / push / PR | [meta] | git-workflow |
+| Error Firebase Auth/Firestore | auth-agent / infra-agent | token-validator / firestore-rules |
 
 ---
 
@@ -196,3 +211,7 @@ Modelo de datos completo: ver seccion "Modelo de datos" en `NEGOCIO.md`
 | 2026-02-10 | Agregada seccion "Sistema de conocimiento acumulativo" y mapa de archivos | AppNotesBG setup |
 | 2026-02-10 | Actualizado mapa de comunicacion: error-handler ahora actualiza coding-standards | AppNotesBG setup |
 | 2026-02-10 | Actualizado protocolo de onboarding con pasos 5-6 (error-patterns y coding-standards) | AppNotesBG setup |
+| 2026-02-11 | Agregada regla global #10: convenciones Angular Signals | AppNotesBG setup |
+| 2026-02-11 | Agregado Angular Signals a tabla de stack | AppNotesBG setup |
+| 2026-02-11 | Agregado routing para errores Firebase Auth/Firestore | AppNotesBG setup |
+| 2026-02-11 | Agregada tabla de subagentes compartidos con state-manager | AppNotesBG setup |

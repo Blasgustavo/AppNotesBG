@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsObject, ValidateNested, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsObject, IsNumber, IsBoolean, ValidateNested, IsEnum } from 'class-validator';
 
 export class TipTapContentDto {
   @IsString()
@@ -92,6 +92,6 @@ export class CreateNoteDto {
   font?: NoteFontDto;
 
   @IsOptional()
-  @IsEnum(['true'])
+  @IsBoolean()
   is_pinned?: boolean;
 }
