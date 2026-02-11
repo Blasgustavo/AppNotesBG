@@ -5,6 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FirebaseAdminModule } from './core/firebase';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -16,6 +17,9 @@ import { FirebaseAdminModule } from './core/firebase';
 
     // Firebase Admin SDK — global, disponible en todos los módulos
     FirebaseAdminModule,
+
+    // Módulos de dominio
+    AuthModule,
 
     ThrottlerModule.forRoot([
       {

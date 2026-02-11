@@ -1,5 +1,6 @@
 import { NgModule, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { RouterOutlet } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
@@ -18,6 +19,7 @@ import { environment } from '../environments/environment';
   imports: [
     BrowserModule,
     AppRoutingModule,
+    RouterOutlet,
   ],
   providers: [
     provideBrowserGlobalErrorListeners(),
