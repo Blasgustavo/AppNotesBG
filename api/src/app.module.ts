@@ -8,6 +8,7 @@ import { FirebaseAdminModule, FirebaseAuthGuard } from './core/firebase';
 import { FirestoreModule } from './core/firestore';
 import { AuthModule } from './auth/auth.module';
 import { NotebooksModule } from './notebooks/notebooks.module';
+import { NotesModule } from './notes/notes.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { NotebooksModule } from './notebooks/notebooks.module';
     // Módulos de dominio
     AuthModule,
     NotebooksModule,
+    NotesModule,
 
     ThrottlerModule.forRoot([
       {

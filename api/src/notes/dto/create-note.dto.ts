@@ -1,4 +1,18 @@
-import { IsString, IsOptional, IsArray, IsObject, IsNumber, IsBoolean, ValidateNested, IsEnum, Min, Length, Matches } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsObject,
+  IsNumber,
+  IsBoolean,
+  ValidateNested,
+  IsEnum,
+  Min,
+  Max,
+  Length,
+  Matches,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import type { TipTapDocument } from '../../../../shared/types/tiptap.types';
 
 export class TipTapContentDto {
@@ -134,4 +148,46 @@ export class UpdateNoteDto extends CreateNoteDto {
   @IsNumber()
   @Min(1)
   declare version: number;
+}
+
+/** Parámetros de query para GET /notes */
+export class QueryNotesDto {
+  @IsOptional()
+  @IsString()
+  notebook_id?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  is_pinned?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  archived?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  deleted?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  cursor?: string; // ID del último documento para paginación startAfter
+}
+
+/** Body para restaurar una versión del historial */
+export class RestoreVersionDto {
+  @IsNumber()
+  @Min(1)
+  version!: number;
 }
