@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { FirebaseAdminModule, FirebaseAuthGuard } from './core/firebase';
 import { FirestoreModule } from './core/firestore';
 import { AuthModule } from './auth/auth.module';
+import { NotebooksModule } from './notebooks/notebooks.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from './auth/auth.module';
 
     // Módulos de dominio
     AuthModule,
+    NotebooksModule,
 
     ThrottlerModule.forRoot([
       {
