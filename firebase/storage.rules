@@ -1,66 +1,19 @@
 rules_version = '2';
 service firebase.storage {
-  match /b/{bucketPaths=**} {
-    // Solo usuarios autenticados pueden subir archivos
-    allow write: if request.auth != null;
-    
-    // Reglas específicas para paths de usuarios
-    match /users/{userId}/{allPaths=**} {
-      // Solo el propietario puede acceder a sus archivos
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Reglas específicas para attachments
-    match /users/{userId}/notes/{noteId}/{fileId} {
-      // Validar que el UID en el path coincida con el usuario autenticado
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Validar tamaño máximo del archivo (10MB)
-      allow write: if request.auth != null && 
-        request.auth.uid == userId &&
-        request.resource.size <= 10 * 1024 * 1024;
-    }
-  }
-
-  // Match específico para el bucket principal
   match /{allPaths=**} {
-    // Permitir lectura pública para archivos que necesiten ser públicos (si aplica)
-    allow read: if false; // Por defecto, todo es privado
-    
-    // Denegar escritura a paths no permitidos
-    allow write: if false;
+    // Denegar todo por defecto, solo permitir reglas específicas
+    allow read, write: if false;
   }
 
-  // Reglas para thumbnails y archivos optimizados
-  match /b/{bucket}/users/{userId}/notes/{noteId}/thumbnails/{thumbId} {
+  // Solo usuarios autenticados pueden acceder a sus archivos
+  match /users/{userId}/{allPaths=**} {
     allow read, write: if request.auth != null && request.auth.uid == userId;
   }
 
-  // Reglas para archivos temporales (uploads en proceso)
-  match /b/{bucket}/temp/{userId}/{tempFileId} {
-    allow write: if request.auth != null && request.auth.uid == userId;
-    allow read: if request.auth != null && request.auth.uid == userId;
-  }
-
-  // Validación de tipos MIME permitidos (requerido en el backend, pero doble verificación)
-  match /b/{bucket}/users/{userId}/notes/{noteId}/{fileId} {
-    allow write: if request.auth != null && 
-        request.auth.uid == userId &&
-        request.resource.size <= 10 * 1024 * 1024 &&
-        (
-          // Imágenes permitidas
-          request.resource.contentType.matches('image/.*') ||
-          // Documentos permitidos
-          request.resource.contentType == 'application/pdf' ||
-          request.resource.contentType == 'application/json' ||
-          request.resource.contentType.matches('text/.*') ||
-          // Audio permitido
-          request.resource.contentType == 'audio/mpeg' ||
-          request.resource.contentType == 'audio/mp3' ||
-          request.resource.contentType == 'audio/wav' ||
-          // Video permitido
-          request.resource.contentType == 'video/mp4' ||
-          request.resource.contentType == 'video/webm'
-        );
+  // Reglas específicas para attachments con validación
+  match /users/{userId}/notes/{noteId}/{fileId} {
+    allow read, write: if request.auth != null && 
+      request.auth.uid == userId &&
+      request.resource.size <= 10 * 1024 * 1024;
   }
 }
