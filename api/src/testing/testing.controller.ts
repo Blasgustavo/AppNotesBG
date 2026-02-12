@@ -45,7 +45,7 @@ export class TestingController {
   })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Endpoint solo para desarrollo' })
-  async runPerformanceTests(@Req() req: AuthenticatedRequest) {
+  async runPerformanceTests(@Req() req: AuthenticatedRequest): Promise<any> {
     // Solo permitir en entorno de desarrollo
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Performance testing only available in development');

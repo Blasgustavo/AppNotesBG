@@ -74,7 +74,7 @@ export class AttachmentsController {
         ],
       }),
     )
-    file: Express.Multer.File,
+    file: any,
     @Body() dto: CreateAttachmentDto,
     @Req() req: AuthenticatedRequest,
   ) {

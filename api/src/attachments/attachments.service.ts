@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   Logger,
   NotFoundException,
   ForbiddenException,
@@ -10,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { FirestoreService } from '../core/firestore';
 import * as admin from 'firebase-admin';
 import { FIREBASE_ADMIN } from '../core/firebase';
+import { AuditService } from '../audit';
 import {
   CreateAttachmentDto,
   UpdateAttachmentDto,
@@ -42,6 +44,7 @@ export class AttachmentsService {
     @Inject(FIREBASE_ADMIN) private readonly firebaseApp: admin.app.App,
     private readonly firestore: FirestoreService,
     private readonly configService: ConfigService,
+    private readonly auditService: AuditService,
   ) {
     this.storage = this.firebaseApp.storage();
   }
@@ -52,7 +55,7 @@ export class AttachmentsService {
   async uploadAttachment(
     userId: string,
     noteId: string,
-    file: Express.Multer.File,
+    file: any,
     dto: CreateAttachmentDto,
     ipAddress: string,
   ): Promise<any> {
@@ -117,7 +120,7 @@ export class AttachmentsService {
         is_duplicate_of: dto.is_duplicate_of || null,
         thumbnail_url: thumbnailUrl,
         alt_text: dto.alt_text || null,
-        extracted_metadata,
+        extracted_metadata: extractedMetadata,
         download_count: 0,
         last_accessed_at: null,
         access_control: {
@@ -148,7 +151,28 @@ export class AttachmentsService {
       // Actualizar summary en la nota
       await this.updateNoteAttachmentSummary(noteId, userId);
 
+      // Actualizar cuota de storage del usuario
+      await this.updateUserStorageQuota(userId, file.size, 'add');
+
       this.logger.log(`Attachment uploaded: ${fileName} by user: ${userId}`);
+
+      // Registrar auditoría
+      await this.auditService.log(
+        userId,
+        'create',
+        'attachment',
+        fileName,
+        ipAddress,
+        'AttachmentsService/1.0',
+        {
+          after: {
+            note_id: noteId,
+            name: dto.name || file.originalname,
+            size_bytes: file.size,
+            type: this.getFileType(file.mimetype),
+          },
+        },
+      );
 
       const created = await attachmentRef.get();
       return created.data();
@@ -277,7 +301,29 @@ export class AttachmentsService {
     // Actualizar summary en la nota
     await this.updateNoteAttachmentSummary(noteId, userId);
 
+    // Actualizar cuota de storage del usuario
+    const fileSize = attachment['size_bytes'] as number;
+    await this.updateUserStorageQuota(userId, fileSize, 'remove');
+
     this.logger.log(`Attachment deleted: ${attachmentId} by user: ${userId}`);
+
+    // Registrar auditoría
+    await this.auditService.log(
+      userId,
+      'delete',
+      'attachment',
+      attachmentId,
+      'unknown', // ipAddress no está disponible en este método
+      'AttachmentsService/1.0',
+      {
+        before: {
+          note_id: noteId,
+          name: attachment['name'],
+          size_bytes: fileSize,
+          type: attachment['type'],
+        },
+      },
+    );
   }
 
   /**
@@ -306,7 +352,7 @@ export class AttachmentsService {
   // Métodos privados
   // ─────────────────────────────────────────────
 
-  private validateFile(file: Express.Multer.File): void {
+  private validateFile(file: any): void {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
@@ -370,7 +416,7 @@ export class AttachmentsService {
   }
 
   private async generateThumbnail(
-    fileRef: admin.storage.File,
+    fileRef: any,
   ): Promise<string | undefined> {
     try {
       // Para una implementación completa, usaríamos image processing library
@@ -384,8 +430,8 @@ export class AttachmentsService {
   }
 
   private async extractMetadata(
-    file: Express.Multer.File,
-    fileRef: admin.storage.File,
+    file: any,
+    fileRef: any,
   ): Promise<Record<string, unknown>> {
     const metadata: Record<string, unknown> = {};
 
@@ -423,6 +469,30 @@ export class AttachmentsService {
     }
 
     return metadata;
+  }
+
+  private async updateUserStorageQuota(
+    userId: string,
+    fileSize: number,
+    operation: 'add' | 'remove',
+  ): Promise<void> {
+    try {
+      const userRef = this.firestore.doc('users', userId);
+      const increment = operation === 'add' ? fileSize : -fileSize;
+      
+      await userRef.update({
+        'quotas.storage_used_bytes': this.firestore.increment(increment),
+        'quotas.attachments_count': this.firestore.increment(operation === 'add' ? 1 : -1),
+        updated_at: this.firestore.serverTimestamp,
+      });
+      
+      this.logger.log(
+        `User ${userId} storage quota ${operation === 'add' ? 'increased' : 'decreased'} by ${fileSize} bytes`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to update user storage quota for ${userId}:`, error);
+      // No fallamos la operación si no se puede actualizar la cuota
+    }
   }
 
   private async updateNoteAttachmentSummary(

@@ -13,7 +13,7 @@ export class TipTapService {
   private readonly logger = new Logger(TipTapService.name);
 
   // DOMPurify setup para server-side rendering
-  private purify: DOMPurify.DOMPurifyI;
+  private purify: ReturnType<typeof DOMPurify>;
 
   constructor() {
     // Configurar DOMPurify con JSDOM para entorno Node.js
@@ -123,18 +123,27 @@ export class TipTapService {
 
     return {
       word_count: wordCount,
-      character_count,
-      reading_time_minutes,
+      character_count: characterCount,
+      reading_time_minutes: readingTimeMinutes,
     };
   }
 
   /**
-   * Genera hash SHA-256 para verificación de integridad
+   * Genera hash SHA-256 para verificación de integridad (content_hash)
    */
   generateContentHash(document: TipTapDocument): string {
     const crypto = require('crypto');
     const content = JSON.stringify(document);
     return crypto.createHash('sha256').update(content).digest('hex');
+  }
+
+  /**
+   * Genera hash MD5 para validación rápida (checksum)
+   */
+  generateChecksum(document: TipTapDocument): string {
+    const crypto = require('crypto');
+    const content = JSON.stringify(document);
+    return crypto.createHash('md5').update(content).digest('hex');
   }
 
   // ─────────────────────────────────────────────

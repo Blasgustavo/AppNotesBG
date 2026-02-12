@@ -5,6 +5,7 @@ import {
   IsArray,
   IsEnum,
   IsBoolean,
+  IsNumber,
   Min,
   Max,
   Length,

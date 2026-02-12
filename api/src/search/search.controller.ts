@@ -73,13 +73,13 @@ export class SearchController {
   @ApiResponse({ status: 400, description: 'Parámetros inválidos' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async search(
+    @Req() req: AuthenticatedRequest,
     @Query('q') query: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
     @Query('tags') tags?: string,
     @Query('notebook') notebook?: string,
     @Query('pinned') pinned?: string,
-    @Req() req: AuthenticatedRequest,
   ) {
     const searchOptions: SearchOptions = {
       query: query.trim(),
@@ -119,9 +119,9 @@ export class SearchController {
   @ApiResponse({ status: 200, description: 'Array de sugerencias' })
   @ApiResponse({ status: 400, description: 'Query demasiado corto' })
   async getSuggestions(
+    @Req() req: AuthenticatedRequest,
     @Query('q') query: string,
     @Query('limit') limit?: string,
-    @Req() req: AuthenticatedRequest,
   ): Promise<{ suggestions: string[] }> {
     const suggestions = await this.searchService.getSearchSuggestions(
       req.user.uid,

@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { FirestoreService } from '../core/firestore';
+import { FirestoreService } from '../firestore';
+
+interface PerformanceResult {
+  testName: string;
+  executionTime: number;
+  documentCount: number;
+  status: 'fast' | 'medium' | 'slow';
+}
 
 @Injectable()
 export class PerformanceTestingService {
@@ -10,15 +17,8 @@ export class PerformanceTestingService {
   /**
    * Test performance de queries críticas antes y después de índices
    */
-  async runPerformanceTests(userId: string): Promise<
-    {
-      testName: string;
-      executionTime: number;
-      documentCount: number;
-      status: 'fast' | 'medium' | 'slow';
-    }[]
-  > {
-    const results = [];
+  async runPerformanceTests(userId: string): Promise<PerformanceResult[]> {
+    const results: PerformanceResult[] = [];
 
     this.logger.log('🧪 Starting performance tests...');
 

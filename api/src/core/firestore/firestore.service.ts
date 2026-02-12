@@ -58,4 +58,18 @@ export class FirestoreService {
   batch(): admin.firestore.WriteBatch {
     return this.db.batch();
   }
+
+  /**
+   * Genera un ID único para documentos.
+   */
+  generateId(): string {
+    return this.db.collection('__unused__').doc().id;
+  }
+
+  /**
+   * Convierte un Date a Timestamp de Firestore.
+   */
+  timestampFromDate(date: Date): admin.firestore.Timestamp {
+    return admin.firestore.Timestamp.fromDate(date);
+  }
 }

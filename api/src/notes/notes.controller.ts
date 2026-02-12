@@ -106,7 +106,7 @@ export class NotesController {
   @ApiParam({ name: 'id', description: 'ID de la nota' })
   @ApiResponse({ status: 204, description: 'Nota eliminada (soft delete)' })
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.notesService.softDelete(id, req.user.uid);
+    return this.notesService.softDelete(id, req.user.uid, this.ip(req));
   }
 
   /** PATCH /api/v1/notes/:id/archive — alterna archivado */

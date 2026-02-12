@@ -13,6 +13,8 @@ import { NotesModule } from './notes/notes.module';
 import { SearchModule } from './search/search.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ThemesModule } from './themes/themes.module';
+import { RemindersModule } from './reminders/reminders.module';
+import { AuditModule } from './audit/audit.module';
 import { TestModule } from './testing/test.module';
 
 @Module({
@@ -39,9 +41,11 @@ import { TestModule } from './testing/test.module';
     SearchModule,
     AttachmentsModule,
     ThemesModule,
+    RemindersModule,
+    AuditModule,
 
-    // Módulos de testing (solo desarrollo)
-    ...(process.env.NODE_ENV !== 'production' ? [TestModule] : []),
+    // Módulos de testing (desactivado temporalmente)
+    // ...(process.env.NODE_ENV !== 'production' ? [TestModule] : []),
 
     ThrottlerModule.forRoot([
       {

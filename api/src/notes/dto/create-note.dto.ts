@@ -71,8 +71,48 @@ export class CollaboratorDto {
   @IsString()
   user_id!: string;
 
-  @IsEnum(['view', 'edit'])
-  permission!: 'view' | 'edit';
+  @IsEnum(['view', 'edit', 'comment'])
+  permission!: 'view' | 'edit' | 'comment';
+
+  @IsOptional()
+  added_at?: string;
+
+  @IsOptional()
+  @IsString()
+  added_by?: string;
+}
+
+export class SharingDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_-]{8,32}$/, {
+    message: 'Public slug must be 8-32 alphanumeric characters',
+  })
+  public_slug?: string;
+
+  @IsOptional()
+  @IsString()
+  public_access_expires?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CollaboratorDto)
+  collaborators?: CollaboratorDto[];
+}
+
+export class LockingDto {
+  @IsOptional()
+  @IsString()
+  locked_by?: string;
+
+  @IsOptional()
+  @IsString()
+  locked_at?: string;
+
+  @IsOptional()
+  @IsString()
+  lock_expires?: string;
 }
 
 export class CreateNoteDto {
@@ -145,6 +185,20 @@ export class CreateNoteDto {
   @IsString()
   @Matches(/^[a-zA-Z0-9_-]+$/, { message: 'Invalid template ID format' })
   template_id?: string;
+
+  @IsOptional()
+  @IsString()
+  reminder_at?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SharingDto)
+  sharing?: SharingDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LockingDto)
+  locking?: LockingDto;
 }
 
 export class UpdateNoteDto extends CreateNoteDto {
