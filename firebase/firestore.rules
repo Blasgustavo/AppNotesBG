@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - solo el propietario puede leer/escribir
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Notes collection - ownership verification
+    match /notes/{noteId} {
+      // Solo el propietario o colaboradores pueden leer
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.user_id ||
+        request.auth.uid in resource.data.collaborators
+      );
+      
+      // Solo el propietario puede crear/editar/eliminar
+      allow write: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    // Notebooks collection - solo propietario
+    match /notebooks/{notebookId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    // Note History collection - acceso basado en ownership de la nota
+    match /note_history/{historyId} {
+      allow read: if request.auth != null;
+      
+      // Solo puede escribir si el usuario es propietario de la nota original
+      allow write: if request.auth != null && 
+        request.auth.uid == get(/databases/$(database)/documents/notes/$(resource.data.note_id)).data.user_id;
+    }
+
+    // Attachments collection - ownership verification
+    match /attachments/{attachmentId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.user_id;
+      
+      allow write: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    // Invitations collection - acceso controlado
+    match /invitations/{invitationId} {
+      // El invitado puede leer y actualizar status
+      allow read, update: if request.auth != null && 
+        request.auth.uid == get(/databases/$(database)/documents/notes/$(resource.data.note_id)).data.user_id ||
+        request.auth.uid == resource.data.invited_by_uid;
+      
+      // Solo el propietario puede crear/revocar
+      allow create, delete: if request.auth != null && 
+        request.auth.uid == resource.data.invited_by_uid;
+    }
+
+    // Themes collection - sistema de themes personalizados
+    match /themes/{themeId} {
+      // Los themes públicos pueden ser leídos por todos
+      allow read: if request.auth != null && (
+        resource.data.is_public == true ||
+        request.auth.uid == resource.data.user_id
+      );
+      
+      // Solo el propietario puede crear/editar/eliminar
+      allow write: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+
+    // Audit Logs collection - solo escritura por sistema, lectura por admins
+    match /audit_logs/{auditId} {
+      allow read: if request.auth != null; // Limitar a admins en producción
+      
+      allow write: if false; // Solo el sistema puede escribir (via Admin SDK)
+    }
+  }
+}

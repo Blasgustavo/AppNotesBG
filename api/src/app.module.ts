@@ -10,6 +10,9 @@ import { TipTapModule } from './core/tiptap';
 import { AuthModule } from './auth/auth.module';
 import { NotebooksModule } from './notebooks/notebooks.module';
 import { NotesModule } from './notes/notes.module';
+import { SearchModule } from './search/search.module';
+import { AttachmentsModule } from './attachments/attachments.module';
+import { TestModule } from './testing/test.module';
 
 @Module({
   imports: [
@@ -34,6 +37,11 @@ import { NotesModule } from './notes/notes.module';
     NotesModule,
     SearchModule,
     AttachmentsModule,
+    SearchModule,
+    AttachmentsModule,
+    
+    // Módulos de testing (solo desarrollo)
+    ...(process.env.NODE_ENV !== 'production' ? [TestModule] : []),
 
     ThrottlerModule.forRoot([
       {
