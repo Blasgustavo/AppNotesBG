@@ -196,11 +196,11 @@
 
     "fieldOverrides": [],
     "indexes": [
-      // Índice genérico para borrar cualquier índice huérfano con --force
+      // Índice para borrar residuales (sin underscore)
       {
-        "collectionGroup": "__cleanup",
+        "collectionGroup": "cleanup_residuals",
         "queryScope": "COLLECTION",
-        "fields": [{ "fieldPath": "__name__", "order": "ASCENDING" }]
+        "fields": [{ "fieldPath": "residual", "order": "ASCENDING" }]
       }
     ]
 }
