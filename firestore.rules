@@ -1,156 +1,151 @@
 rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────
+// AppNotesBG — Firestore Security Rules
+//
+// Arquitectura: Frontend → NestJS (Admin SDK) → Firestore
+//
+// El Admin SDK bypasea TODAS estas reglas.
+// Estas reglas solo aplican a lecturas directas del cliente (@angular/fire).
+// ─────────────────────────────────────────────────────────────────────
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Funciones helper
+
+    // ─── Helpers ─────────────────────────────────────────────────────
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     function isCollaborator(collaborators) {
       return isAuthenticated()
         && 'sharing' in resource.data
         && 'collaborators' in resource.data.sharing
-        && resource.data.sharing.collaborators.hasAny([{user_id: request.auth.uid}]);
-    }
-    
-    function isEditCollaborator(collaborators) {
-      return isAuthenticated()
-        && 'sharing' in resource.data
-        && 'collaborators' in resource.data.sharing
-        && resource.data.sharing.collaborators.any(collaborator => 
-          collaborator.user_id == request.auth.uid 
-          && (collaborator.permission == 'edit' || collaborator.permission == 'comment')
-        );
+        && resource.data.sharing.collaborators.hasAny([
+            { user_id: request.auth.uid, permission: 'view' },
+            { user_id: request.auth.uid, permission: 'edit' },
+            { user_id: request.auth.uid, permission: 'comment' },
+          ]);
     }
 
-    function isValidContentHash(hash) {
-      return hash.matches('^[a-fA-F0-9]{64}$');
-    }
+    // ─── users ─────────────────────────────────────────────────────
 
-    function isValidChecksum(checksum) {
-      return checksum.matches('^[a-fA-F0-9]{32}$');
-    }
-
-    function isValidIpAddress(ip) {
-      return ip.matches('^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$');
-    }
-
-    function isNotRateLimited(userId) {
-      // Verificar si el usuario no está rate limited
-      return true; // Implementar con Firestore counters o Cloud Functions
-    }
-
-    // Users
     match /users/{userId} {
+      // El usuario solo puede leer/actualizar su propio perfil.
+      // Toda escritura (onboarding, actualización de preferencias)
+      // pasa por NestJS (Admin SDK), que bypasea estas reglas.
       allow read, write: if isOwner(userId);
       allow create: if isOwner(userId)
         && request.resource.data.status in ['active', 'suspended', 'deleted']
+        && 'preferences' in request.resource.data
         && 'security' in request.resource.data
         && 'quotas' in request.resource.data
         && 'audit' in request.resource.data;
     }
 
-    // Notebooks
+    // ─── notebooks ─────────────────────────────────────────────────────
+
     match /notebooks/{notebookId} {
-      allow read, write: if isAuthenticated()
-        && resource.data.user_id == request.auth.uid;
-      allow create: if isAuthenticated()
-        && request.resource.data.user_id == request.auth.uid;
-    }
-
-    // Notes
-    match /notes/{noteId} {
-      allow read: if isAuthenticated() && (
-        resource.data.user_id == request.auth.uid
-        || isCollaborator(resource.data.sharing.collaborators)
-        || ('sharing' in resource.data && 'public_slug' in resource.data.sharing && 
-            resource.data.sharing.public_access_expires == null || 
-            resource.data.sharing.public_access_expires > request.time)
-      );
-      allow create: if isAuthenticated()
-        && request.resource.data.user_id == request.auth.uid
-        && 'content_hash' in request.resource.data
-        && isValidContentHash(request.resource.data.content_hash)
-        && 'checksum' in request.resource.data
-        && isValidChecksum(request.resource.data.checksum)
-        && 'version' in request.resource.data
-        && request.resource.data.version == 1
-        && 'audit' in request.resource.data
-        && isValidIpAddress(request.resource.data.audit.created_ip);
-      allow update: if isAuthenticated()
-        && (resource.data.user_id == request.auth.uid || isEditCollaborator(resource.data.sharing.collaborators))
-        && 'content_hash' in request.resource.data
-        && isValidContentHash(request.resource.data.content_hash)
-        && 'version' in request.resource.data
-        && request.resource.data.version == resource.data.version + 1
-        && 'audit' in request.resource.data;
-      allow delete: if isAuthenticated()
-        && resource.data.user_id == request.auth.uid;
-    }
-
-    // Note history - inmutable
-    match /note_history/{historyId} {
+      // El cliente puede escuchar libretas en tiempo real.
+      // Toda escritura va por NestJS.
       allow read: if isAuthenticated()
         && resource.data.user_id == request.auth.uid;
       allow create: if isAuthenticated()
-        && request.resource.data.user_id == request.auth.uid
-        && exists(/databases/$(database)/documents/notes/$(request.resource.data.note_id))
-        && get(/databases/$(database)/documents/notes/$(request.resource.data.note_id)).data.user_id == request.auth.uid;
-      allow update, delete: if false;
-    }
-
-    // Themes
-    match /themes/{themeId} {
-      allow read, write: if isAuthenticated()
         && resource.data.user_id == request.auth.uid;
-      allow create: if isAuthenticated()
-        && request.resource.data.user_id == request.auth.uid;
     }
 
-    // Attachments
-    match /attachments/{attachmentId} {
-      allow read, write: if isAuthenticated()
+    // ─── notes ─────────────────────────────────────────────────────
+
+    match /notes/{noteId} {
+      // El cliente puede escuchar sus notas en tiempo real.
+      // Los colaboradores con permiso 'view'/'comment' pueden leer.
+      // Los colaboradores con permiso 'edit' pueden leer/actualizar.
+      // Toda escritura (creación, actualización) va por NestJS.
+      allow read: if isAuthenticated() && (
+        resource.data.user_id == request.auth.uid
+        || isCollaborator(resource.data.collaborators)
+      );
+      allow create: if isAuthenticated()
         && resource.data.user_id == request.auth.uid;
-      allow create: if isAuthenticated()
-        && request.resource.data.user_id == request.auth.uid;
-    }
-
-    // Invitations
-    match /invitations/{invitationId} {
-      allow create: if isAuthenticated()
-        && request.resource.data.invited_by_uid == request.auth.uid
-        && 'invitation_token' in request.resource.data
-        && 'expires_at' in request.resource.data
-        && request.resource.data.expires_at > request.time
-        && request.resource.data.max_uses >= 1
-        && 'audit' in request.resource.data;
+      allow update: if isAuthenticated()
+        && (
+          resource.data.user_id == request.auth.uid
+          || isCollaborator(resource.data.collaborators)
+        );
       allow delete: if isAuthenticated()
-        && resource.data.invited_by_uid == request.auth.uid;
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── note_history ─────────────────────────────────────────────────────
+
+    match /note_history/{historyId} {
+      // Solo el propietario puede leer el historial.
+      // Inmutable: ni el cliente ni NestJS actualizan/eliminan
+      // (salvo el pruneHistory que es via Admin SDK).
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if false; // Solo Admin SDK
+    }
+
+    // ─── themes ─────────────────────────────────────────────────────
+
+    match /themes/{themeId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── attachments ─────────────────────────────────────────────────────
+
+    match /attachments/{attachmentId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── invitations ─────────────────────────────────────────────────────
+
+    match /invitations/{invitationId} {
+      // El invitado y el creador pueden leer la invitación.
+      // El creador puede crear/revocar. El invitado puede aceptar/rechazar.
       allow read: if isAuthenticated() && (
         resource.data.invited_by_uid == request.auth.uid
         || resource.data.invited_email == request.auth.token.email
       );
+      allow create: if isAuthenticated()
+        && resource.data.invited_by_uid == request.auth.uid;
       allow update: if isAuthenticated() && (
-        (resource.data.invited_by_uid == request.auth.uid && request.resource.data.status in ['revoked'])
-        || (resource.data.invited_email == request.auth.token.email && request.resource.data.status in ['accepted', 'rejected'])
+        (resource.data.invited_by_uid == request.auth.uid && resource.data.status in ['revoked'])
+        || (
+          resource.data.invited_email == request.auth.token.email
+          && resource.data.status in ['accepted', 'rejected']
+        )
       );
+      allow delete: if isAuthenticated()
+        && resource.data.invited_by_uid == request.auth.uid;
     }
 
-    // Audit Logs - solo escritura para usuarios, lectura para admins
+    // ─── audit_logs ─────────────────────────────────────────────────────
+
     match /audit_logs/{logId} {
-      allow read: if false; // Solo accesible via Cloud Functions para admins
-      allow create: if isAuthenticated()
-        && request.resource.data.user_id == request.auth.uid
-        && 'action' in request.resource.data
-        && 'resource_type' in request.resource.data
-        && 'resource_id' in request.resource.data
-        && isValidIpAddress(request.resource.data.ip_address)
-        && 'security_context' in request.resource.data;
-      allow update, delete: if false; // Los logs son inmutables
+      // Completamente inaccesible desde el cliente.
+      // Solo accesible desde Cloud Functions o Admin SDK.
+      allow read, write: if false;
+    }
+
+    // ─── Catch-all: bloquear cualquier otra colección ─────────────────────
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
