@@ -194,5 +194,13 @@
     }
   ],
 
-  "fieldOverrides": []
+    "fieldOverrides": [],
+    // Dummy index para forzar sincronización con estado actual del proyecto
+    "indexes": [
+      {
+        "collectionGroup": "_dummy_sync",
+        "queryScope": "COLLECTION",
+        "fields": [{ "fieldPath": "__name__", "order": "ASCENDING" }]
+      }
+    ]
 }
