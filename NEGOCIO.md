@@ -815,16 +815,26 @@ AGENTS.md (Orquestador)
 │   ├── error-handler.md               ← Detecta + documenta + fix errores
 │   ├── git-workflow.md                ← Valida commits/ramas/PRs
 │   ├── error-patterns/                ← Errores por tecnología (reactivo)
+│   │   ├── typescript-undefined.md
+│   │   ├── eslint-rules.md
+│   │   ├── firestore-rules-errors.md
+│   │   ├── angular-rxjs-memory-leaks.md
+│   │   ├── angular-dependency-conflicts.md
+│   │   ├── nestjs-typescript-unsafe.md
+│   │   └── unused-imports.md
 │   └── coding-standards/              ← Convenciones por tecnología (proactivo)
+│       └── angular.md                 ← Convenciones Angular Signals
 │
-├── AppNotesBG-agents/                 ← Agentes de dominio
+├── AppNotesBG-agents/                 ← Agentes de dominio (7)
 │   ├── notes-agent.md                 ← CRUD notas, libretas, adjuntos, historial
 │   ├── search-agent.md                ← Indexación y búsqueda con Algolia
 │   ├── auth-agent.md                  ← Login Google, validación tokens, onboarding
 │   ├── ai-agent.md                    ← Resúmenes y sugerencias con Gemini
+│   ├── themes-agent.md                ← CRUD temas personalizados
+│   ├── reminder-agent.md              ← Gestión de recordatorios
 │   └── infra-agent.md                 ← Reglas Firestore/Storage, Cloud Functions
 │
-└── AppNotesBG-subagents/              ← Subagentes especializados
+└── AppNotesBG-subagents/              ← Subagentes especializados (11)
     ├── notes/
     │   ├── note-creator.md           ← Crear notas/libretas/adjuntos
     │   ├── note-editor.md            ← Editar contenido, estilos, archivar
@@ -836,9 +846,15 @@ AGENTS.md (Orquestador)
     ├── ai/
     │   ├── summarizer.md             ← Resumir notas con Gemini
     │   └── tag-suggester.md          ← Sugerir etiquetas con Gemini
-    └── infra/
-        ├── firestore-rules.md       ← Reglas de seguridad Firestore
-        └── storage-rules.md         ← Reglas de seguridad Storage
+    ├── infra/
+    │   ├── firestore-rules.md       ← Reglas de seguridad Firestore
+    │   └── storage-rules.md         ← Reglas de seguridad Storage
+    ├── themes/
+    │   └── theme-manager.md         ← Gestión de temas personalizados
+    ├── reminders/
+    │   └── reminder-scheduler.md    ← CRUD recordatorios + Cloud Functions
+    └── shared/
+        └── state-manager.md         ← Estado reactivo Angular Signals
 ```
 
 ---
@@ -1128,11 +1144,12 @@ firebase deploy --only functions
 |---|---|---|
 | **NEGOCIO.md** | ✅ Completo | Modelo de datos, stack, funcionalidades, roadmap, decisiones técnicas |
 | **AGENTS.md** | ✅ Completo | Orquestador global con routing, reglas y comunicación entre agentes |
-| **Sistema de skills** | ✅ Completo | 22 archivos en 3 capas: meta-skills, agentes, subagentes |
+| **Sistema de skills** | ✅ Completo | 30 archivos en 3 capas: meta-skills, agentes, subagentes |
 | **Meta-skills** | ✅ Completos | create-skill, sync-agents, error-handler, git-workflow |
-| **Error patterns** | ✅ Completos | 4 patrones por tecnología (TS, ESLint, Firestore, RxJS) |
-| **Agentes de dominio** | ✅ Completos | 5 agentes: notes, search, auth, ai, infra |
-| **Subagentes** | ✅ Completos | 8 subagentes especializados con input/output tipado |
+| **Error patterns** | ✅ Completos | 7 patrones por tecnología (TS, ESLint, Firestore, RxJS, Angular, NestJS, unused imports) |
+| **Coding standards** | ✅ En progreso | 1 completo (angular.md), 6 previstos para creación gradual |
+| **Agentes de dominio** | ✅ Completos | 7 agentes: notes, search, auth, ai, themes, reminders, infra |
+| **Subagentes** | ✅ Completos | 11 subagentes especializados con input/output tipado |
 
 ### ✅ Completado — Convenciones y estándares
 
@@ -1188,20 +1205,44 @@ Usuario → clic "Continuar con Google"
   → Router navega a /
 ```
 
+### ✅ Completado — Backend Core (2026-02-12)
+
+| Componente | Estado | Detalles |
+|---|---|---|
+| **NotesModule** | ✅ Completo | CRUD notas con campos faltantes (reminder_at, sharing, locking), filtrado por tags, integridad de datos (MD5/SHA-256) |
+| **NotebooksModule** | ✅ Completo | CRUD libretas con soporte para colaboración |
+| **AttachmentsModule** | ✅ Completo | Upload/download archivos con sincronización de cuotas de storage |
+| **AuditModule** | ✅ Completo | Sistema de auditoría completo (create, update, delete, read, share, download, login, logout) |
+| **RemindersModule** | ✅ Completo | CRUD recordatorios con integración FCM (Firebase Cloud Messaging) |
+| **SearchModule** | ✅ Completo | Integración Algolia v5 para búsqueda full-text |
+| **TipTapModule** | ✅ Completo | Validación, sanitización y métricas de contenido TipTap JSON |
+| **Compilación** | ✅ Exitosa | `npm run build` sin errores TypeScript |
+
+### Correcciones aplicadas al backend
+
+1. **Modelo de datos de notas**: Agregados campos faltantes (`reminder_at`, `sharing`, `locking`) a los DTOs y servicios
+2. **Integridad de datos**: SHA-256 para `content_hash`, MD5 para `checksum` en TipTapService
+3. **Gestión de cuotas**: AttachmentsService actualiza automáticamente `storage_used_bytes` y `attachments_count`
+4. **Sistema de auditoría**: Nuevo AuditModule con logging de todas las operaciones críticas
+5. **Filtrado por tags**: Implementado `array-contains-any` en NotesService.findAll()
+6. **Correcciones de tipos**: Fixeados errores TypeScript en RemindersModule, SearchModule (Algolia v5), ThemesModule
+7. **Index exports**: Creados archivos index.ts para TipTapModule y AuditModule
+
 ### 📋 Estadísticas de implementación
 
 | Categoría | Cantidad | Archivos clave |
 |---|---|---|
 | **Meta-skills** | 4 | create-skill, sync-agents, error-handler, git-workflow |
-| **Error patterns** | 4 | typescript-undefined, eslint-rules, firestore-rules-errors, angular-rxjs-memory-leaks |
-| **Agentes** | 5 | notes-agent, search-agent, auth-agent, ai-agent, infra-agent |
-| **Subagentes** | 8 | note-creator, note-editor, note-history, algolia-indexer, token-validator, summarizer, tag-suggester, firestore-rules, storage-rules |
+| **Error patterns** | 7 | typescript-undefined, eslint-rules, firestore-rules-errors, angular-rxjs-memory-leaks, angular-dependency-conflicts, nestjs-typescript-unsafe, unused-imports |
+| **Coding standards** | 1 | angular.md (typescript.md, nestjs.md, tiptap.md, firestore.md, rxjs.md, algolia.md previstos) |
+| **Agentes** | 7 | notes-agent, search-agent, auth-agent, ai-agent, themes-agent, reminder-agent, infra-agent |
+| **Subagentes** | 11 | note-creator, note-editor, note-history, algolia-indexer, token-validator, summarizer, tag-suggester, firestore-rules, storage-rules, state-manager, theme-manager, reminder-scheduler |
 | **Core state services** | 4 | auth-state, notes-state, editor-state, ui-state |
 | **Shared types** | 1 | tiptap.types.ts |
 | **Guards Angular** | 2 | authGuard, publicGuard | |
 | **Firestore Service** | 1 | `FirestoreService` global con helpers para acceso desde cualquier módulo |
 | **Exception Filter** | 1 | `HttpExceptionFilter` global para respuestas consistentes |
-| **Módulos NestJS** | 1 | AuthModule |
+| **Módulos NestJS** | 5 | AuthModule, NotesModule, NotebooksModule, AttachmentsModule, AuditModule |
 
 ### 🎯 Próximos pasos de desarrollo (MVP)
 
@@ -1212,7 +1253,7 @@ Usuario → clic "Continuar con Google"
 | 3 | Tags — etiquetar notas y filtrar | notes-agent → note-editor |
 | 4 | Historial de versiones | notes-agent → note-history |
 | 5 | Búsqueda full-text con Algolia | search-agent → algolia-indexer |
-| 6 | Temas light/dark | themes-agent → theme-manager |
+| 6 | Temas light/dark | ✅ themes-agent → theme-manager |
 | 7 | Adjuntos (imágenes/PDFs) | notes-agent → note-creator |
 
 ### 🔄 Sistema de aprendizaje acumulativo
@@ -1230,3 +1271,4 @@ Usuario → clic "Continuar con Google"
 | 2026-02-10 | Documentación y arquitectura completa | `57966a2` |
 | 2026-02-11 | Infraestructura base Firebase + environments | `b0e2bc7` |
 | 2026-02-11 | Módulo de autenticación completo | `ad0f362` |
+| 2026-02-12 | Backend alineado con NEGOCIO.md: AuditModule, correcciones de modelo y compilación exitosa | `36bf7ee` |
