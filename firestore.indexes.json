@@ -194,5 +194,13 @@
     }
   ],
 
-    "fieldOverrides": []
+    "fieldOverrides": [],
+    "indexes": [
+      // Índice genérico para borrar cualquier índice huérfano con --force
+      {
+        "collectionGroup": "__cleanup",
+        "queryScope": "COLLECTION",
+        "fields": [{ "fieldPath": "__name__", "order": "ASCENDING" }]
+      }
+    ]
 }
