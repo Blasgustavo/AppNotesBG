@@ -1,19 +1,13 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-import { FIREBASE_ADMIN } from '../core/firebase';
+import { FirestoreService } from '../core/firestore';
 import type { AuthMeResponseDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(
-    @Inject(FIREBASE_ADMIN) private readonly firebaseApp: admin.app.App,
-  ) {}
-
-  private get db(): admin.firestore.Firestore {
-    return this.firebaseApp.firestore();
-  }
+  constructor(private readonly firestore: FirestoreService) {}
 
   /**
    * Crea o actualiza el documento del usuario en Firestore al hacer login.
@@ -24,14 +18,13 @@ export class AuthService {
     ipAddress: string,
   ): Promise<AuthMeResponseDto> {
     const uid = decodedToken.uid;
-    const userRef = this.db.collection('users').doc(uid);
+    const userRef = this.firestore.doc('users', uid);
     const userSnap = await userRef.get();
 
     const isNewUser = !userSnap.exists;
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = this.firestore.serverTimestamp;
 
     if (isNewUser) {
-      // Primer login — crear perfil completo
       const newUser = {
         id: uid,
         email: decodedToken.email ?? '',
@@ -58,7 +51,7 @@ export class AuthService {
         },
         quotas: {
           storage_used_bytes: 0,
-          storage_limit_bytes: 524288000, // 500MB
+          storage_limit_bytes: 524288000,
           notes_count: 0,
           attachments_count: 0,
         },
@@ -71,15 +64,12 @@ export class AuthService {
 
       await userRef.set(newUser);
       await this.createDefaultNotebook(uid, now);
-
       this.logger.log(`Nuevo usuario registrado: ${uid}`);
     } else {
-      // Login recurrente — actualizar datos de sesión
       await userRef.update({
         last_login_at: now,
-        login_count: admin.firestore.FieldValue.increment(1),
+        login_count: this.firestore.increment(1),
         email_verified: decodedToken.email_verified ?? false,
-        // Actualizar avatar por si cambió en Google
         avatar_url: decodedToken.picture ?? userSnap.data()?.avatar_url ?? null,
         'audit.last_updated_by': uid,
         'audit.last_updated_ip': ipAddress,
@@ -96,14 +86,11 @@ export class AuthService {
     };
   }
 
-  /**
-   * Crea la libreta por defecto al registrarse un usuario nuevo.
-   */
   private async createDefaultNotebook(
     uid: string,
     now: admin.firestore.FieldValue,
   ): Promise<void> {
-    const notebookRef = this.db.collection('notebooks').doc();
+    const notebookRef = this.firestore.collection('notebooks').doc();
     await notebookRef.set({
       id: notebookRef.id,
       user_id: uid,

@@ -4,7 +4,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { FirebaseAdminModule } from './core/firebase';
+import { FirebaseAdminModule, FirebaseAuthGuard } from './core/firebase';
+import { FirestoreModule } from './core/firestore';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
@@ -17,6 +18,9 @@ import { AuthModule } from './auth/auth.module';
 
     // Firebase Admin SDK — global, disponible en todos los módulos
     FirebaseAdminModule,
+
+    // Firestore — servicio global de acceso a la base de datos
+    FirestoreModule,
 
     // Módulos de dominio
     AuthModule,
@@ -31,7 +35,11 @@ import { AuthModule } from './auth/auth.module';
   controllers: [AppController],
   providers: [
     AppService,
+    // ThrottlerGuard primero — rate limiting antes de autenticación
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // FirebaseAuthGuard global — protege todos los endpoints
+    // Usar @Public() para marcar rutas que no requieren auth
+    { provide: APP_GUARD, useClass: FirebaseAuthGuard },
   ],
 })
 export class AppModule {}

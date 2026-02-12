@@ -1,7 +1,7 @@
 import { NgModule, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { RouterOutlet } from '@angular/router';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideAuth, getAuth } from '@angular/fire/auth';
@@ -11,6 +11,7 @@ import { provideStorage, getStorage } from '@angular/fire/storage';
 import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
 import { environment } from '../environments/environment';
+import { authInterceptor } from './core/interceptors/auth.interceptor';
 
 @NgModule({
   declarations: [
@@ -23,7 +24,8 @@ import { environment } from '../environments/environment';
   ],
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withFetch()),
+    // Interceptor de auth incluido — agrega Bearer token automáticamente
+    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
 
     // Firebase — configurado desde environment.ts
     provideFirebaseApp(() => initializeApp(environment.firebase)),

@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './core/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -15,6 +16,9 @@ async function bootstrap() {
     origin: corsOrigin,
     credentials: true,
   });
+
+  // Exception filter global — respuestas de error consistentes
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // ValidationPipe global para DTOs con class-validator
   app.useGlobalPipes(new ValidationPipe({

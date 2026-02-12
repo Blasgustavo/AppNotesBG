@@ -1,7 +1,6 @@
-import { Controller, Post, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { FirebaseAuthGuard } from '../core/firebase';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('auth')
@@ -14,10 +13,10 @@ export class AuthController {
    * POST /api/v1/auth/me
    * Valida el token de Firebase y crea o actualiza el usuario en Firestore.
    * El frontend llama este endpoint en cada login.
+   * Protegido por FirebaseAuthGuard global.
    */
   @Post('me')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(FirebaseAuthGuard)
   @ApiOperation({ summary: 'Login o registro del usuario autenticado con Firebase' })
   @ApiResponse({ status: 200, description: 'Perfil del usuario devuelto correctamente' })
   @ApiResponse({ status: 401, description: 'Token inválido o expirado' })

@@ -89,3 +89,6 @@ temp/
 .vscode-test
 
 # End of https://www.gitignore.io/api/node
+
+# Windows reserved filenames creados accidentalmente
+nul
