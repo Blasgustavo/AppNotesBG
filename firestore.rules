@@ -7,6 +7,10 @@ rules_version = '2';
 //
 // El Admin SDK bypasea TODAS estas reglas.
 // Estas reglas solo aplican a lecturas directas del cliente (@angular/fire).
+// para listeners en tiempo real (onSnapshot).
+//
+// PRINCIPIO: El cliente NUNCA escribe directamente a Firestore.
+//            Toda escritura pasa por NestJS (Admin SDK), que bypasea estas reglas.
 // ─────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -25,7 +29,6 @@ service cloud.firestore {
     function isCollaborator(collaborators) {
       return isAuthenticated()
         && 'sharing' in resource.data
-        && 'collaborators' in resource.data.sharing
         && resource.data.sharing.collaborators.hasAny([
             { user_id: request.auth.uid, permission: 'view' },
             { user_id: request.auth.uid, permission: 'edit' },
@@ -33,7 +36,7 @@ service cloud.firestore {
           ]);
     }
 
-    // ─── users ─────────────────────────────────────────────────────
+    // ─── users ─────────────────────────────────────────────────────────────
 
     match /users/{userId} {
       // El usuario solo puede leer/actualizar su propio perfil.
@@ -59,7 +62,7 @@ service cloud.firestore {
         && resource.data.user_id == request.auth.uid;
     }
 
-    // ─── notes ─────────────────────────────────────────────────────
+    // ─── notes ─────────────────────────────────────────────────────────────
 
     match /notes/{noteId} {
       // El cliente puede escuchar sus notas en tiempo real.
