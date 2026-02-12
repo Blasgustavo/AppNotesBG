@@ -51,7 +51,10 @@ export class SearchService {
   ) {
     const appId = this.configService.get<string>('ALGOLIA_APP_ID');
     const adminApiKey = this.configService.get<string>('ALGOLIA_ADMIN_API_KEY');
-    this.indexName = this.configService.get<string>('ALGOLIA_INDEX_NAME', 'notes_dev');
+    this.indexName = this.configService.get<string>(
+      'ALGOLIA_INDEX_NAME',
+      'notes_dev',
+    );
 
     if (!appId || !adminApiKey) {
       throw new Error('Algolia credentials not configured');
@@ -96,7 +99,9 @@ export class SearchService {
       };
 
       await this.index.saveObject(record);
-      this.logger.log(`Note indexed: ${noteData.id} for user: ${noteData.user_id}`);
+      this.logger.log(
+        `Note indexed: ${noteData.id} for user: ${noteData.user_id}`,
+      );
     } catch (error) {
       this.logger.error(`Failed to index note ${noteData.id}:`, error);
       throw error;
@@ -122,7 +127,10 @@ export class SearchService {
       await this.indexNote(noteData);
       this.logger.log(`Note updated in index: ${noteData.id}`);
     } catch (error) {
-      this.logger.error(`Failed to update note ${noteData.id} in index:`, error);
+      this.logger.error(
+        `Failed to update note ${noteData.id} in index:`,
+        error,
+      );
       throw error;
     }
   }
@@ -152,13 +160,21 @@ export class SearchService {
     processingTimeMS: number;
   }> {
     try {
-      const { query, userId, limit = 20, offset = 0, tags, notebookId, isPinned } = options;
+      const {
+        query,
+        userId,
+        limit = 20,
+        offset = 0,
+        tags,
+        notebookId,
+        isPinned,
+      } = options;
 
       // Construir filtros Algolia
       const filters: string[] = [`user_id:${userId}`];
 
       if (tags && tags.length > 0) {
-        const tagFilters = tags.map(tag => `tags:"${tag}"`);
+        const tagFilters = tags.map((tag) => `tags:"${tag}"`);
         filters.push(`(${tagFilters.join(' OR ')})`);
       }
 
@@ -184,7 +200,9 @@ export class SearchService {
 
       const result = await this.index.search<SearchResult>(searchParams);
 
-      this.logger.log(`Search performed for user ${userId}: ${result.nbHits} hits found`);
+      this.logger.log(
+        `Search performed for user ${userId}: ${result.nbHits} hits found`,
+      );
 
       return {
         hits: result.hits,
@@ -203,7 +221,11 @@ export class SearchService {
   /**
    * Obtiene sugerencias autocompletar para búsqueda
    */
-  async getSearchSuggestions(userId: string, query: string, limit = 5): Promise<string[]> {
+  async getSearchSuggestions(
+    userId: string,
+    query: string,
+    limit = 5,
+  ): Promise<string[]> {
     try {
       if (query.length < 2) return [];
 
@@ -216,8 +238,8 @@ export class SearchService {
       });
 
       const suggestions = result.hits
-        .map(hit => hit.title)
-        .filter(title => title.toLowerCase().includes(query.toLowerCase()))
+        .map((hit) => hit.title)
+        .filter((title) => title.toLowerCase().includes(query.toLowerCase()))
         .slice(0, limit);
 
       return suggestions;
@@ -233,8 +255,18 @@ export class SearchService {
   async configureIndex(): Promise<void> {
     try {
       const settings = {
-        searchableAttributes: ['title', 'content_text', 'tags', 'notebook_name'],
-        attributesForFaceting: ['user_id', 'tags', 'notebook_name', 'is_pinned'],
+        searchableAttributes: [
+          'title',
+          'content_text',
+          'tags',
+          'notebook_name',
+        ],
+        attributesForFaceting: [
+          'user_id',
+          'tags',
+          'notebook_name',
+          'is_pinned',
+        ],
         ranking: [
           'typo',
           'geo',

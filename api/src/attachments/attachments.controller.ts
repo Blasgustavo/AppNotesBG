@@ -26,7 +26,10 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AttachmentsService } from './attachments.service';
-import { CreateAttachmentDto, UpdateAttachmentDto } from './dto/create-attachment.dto';
+import {
+  CreateAttachmentDto,
+  UpdateAttachmentDto,
+} from './dto/create-attachment.dto';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('attachments')
@@ -47,12 +50,16 @@ export class AttachmentsController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Subir un archivo adjunto',
-    description: 'Sube un archivo a Firebase Storage y crea el registro en Firestore'
+    description:
+      'Sube un archivo a Firebase Storage y crea el registro en Firestore',
   })
   @ApiResponse({ status: 201, description: 'Archivo subido exitosamente' })
-  @ApiResponse({ status: 400, description: 'Archivo inválido o cuota excedida' })
+  @ApiResponse({
+    status: 400,
+    description: 'Archivo inválido o cuota excedida',
+  })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 413, description: 'Archivo demasiado grande' })
   async uploadAttachment(
@@ -61,7 +68,8 @@ export class AttachmentsController {
         validators: [
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
           new FileTypeValidator({
-            fileType: /(jpeg|jpg|png|gif|webp|pdf|mp3|mpeg|wav|mp4|webm|txt|json)$/,
+            fileType:
+              /(jpeg|jpg|png|gif|webp|pdf|mp3|mpeg|wav|mp4|webm|txt|json)$/,
           }),
         ],
       }),
@@ -81,9 +89,9 @@ export class AttachmentsController {
 
   /** GET /api/v1/attachments/:id — obtener attachment */
   @Get(':id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener información de un archivo adjunto',
-    description: 'Retorna metadata del archivo, no el contenido'
+    description: 'Retorna metadata del archivo, no el contenido',
   })
   @ApiParam({ name: 'id', description: 'ID del attachment' })
   @ApiResponse({ status: 200, description: 'Metadata del attachment' })
@@ -98,9 +106,9 @@ export class AttachmentsController {
 
   /** GET /api/v1/attachments/:id/download — URL de descarga */
   @Get(':id/download')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener URL de descarga firmada',
-    description: 'Genera una URL temporal para descargar el archivo'
+    description: 'Genera una URL temporal para descargar el archivo',
   })
   @ApiParam({ name: 'id', description: 'ID del attachment' })
   @ApiResponse({ status: 200, description: 'URL de descarga temporal' })
@@ -115,9 +123,10 @@ export class AttachmentsController {
 
   /** GET /api/v1/attachments/note/:noteId — listar attachments de una nota */
   @Get('note/:noteId')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Listar adjuntos de una nota',
-    description: 'Retorna todos los attachments pertenecientes a una nota específica'
+    description:
+      'Retorna todos los attachments pertenecientes a una nota específica',
   })
   @ApiParam({ name: 'noteId', description: 'ID de la nota' })
   @ApiResponse({ status: 200, description: 'Lista de attachments' })
@@ -132,9 +141,9 @@ export class AttachmentsController {
 
   /** PATCH /api/v1/attachments/:id — actualizar metadata */
   @Patch(':id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Actualizar metadata de un attachment',
-    description: 'Actualiza nombre, alt text, virus scan status, etc.'
+    description: 'Actualiza nombre, alt text, virus scan status, etc.',
   })
   @ApiParam({ name: 'id', description: 'ID del attachment' })
   @ApiResponse({ status: 200, description: 'Attachment actualizado' })
@@ -156,12 +165,15 @@ export class AttachmentsController {
   /** DELETE /api/v1/attachments/:id — eliminar attachment */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Eliminar un archivo adjunto',
-    description: 'Elimina el archivo de Storage y el registro de Firestore'
+    description: 'Elimina el archivo de Storage y el registro de Firestore',
   })
   @ApiParam({ name: 'id', description: 'ID del attachment' })
-  @ApiResponse({ status: 204, description: 'Attachment eliminado exitosamente' })
+  @ApiResponse({
+    status: 204,
+    description: 'Attachment eliminado exitosamente',
+  })
   @ApiResponse({ status: 404, description: 'Attachment no encontrado' })
   @ApiResponse({ status: 403, description: 'Acceso denegado' })
   async deleteAttachment(

@@ -10,7 +10,10 @@ import { ConfigService } from '@nestjs/config';
 import { FirestoreService } from '../core/firestore';
 import * as admin from 'firebase-admin';
 import { FIREBASE_ADMIN } from '../core/firebase';
-import { CreateAttachmentDto, UpdateAttachmentDto } from './dto/create-attachment.dto';
+import {
+  CreateAttachmentDto,
+  UpdateAttachmentDto,
+} from './dto/create-attachment.dto';
 
 const ATTACHMENTS_COL = 'attachments';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -137,7 +140,9 @@ export class AttachmentsService {
         updated_at: this.firestore.serverTimestamp,
       };
 
-      const attachmentRef = this.firestore.collection(ATTACHMENTS_COL).doc(fileName);
+      const attachmentRef = this.firestore
+        .collection(ATTACHMENTS_COL)
+        .doc(fileName);
       await attachmentRef.set(attachmentData);
 
       // Actualizar summary en la nota
@@ -149,7 +154,7 @@ export class AttachmentsService {
       return created.data();
     } catch (error) {
       this.logger.error(`Failed to upload attachment:`, error);
-      
+
       // Limpiar archivo de Storage si falló el registro en Firestore
       if (file) {
         try {
@@ -201,7 +206,7 @@ export class AttachmentsService {
       .orderBy('created_at', 'desc')
       .get();
 
-    return snap.docs.map(doc => doc.data());
+    return snap.docs.map((doc) => doc.data());
   }
 
   /**
@@ -223,9 +228,12 @@ export class AttachmentsService {
 
     if (dto.name !== undefined) updates['name'] = dto.name;
     if (dto.alt_text !== undefined) updates['alt_text'] = dto.alt_text;
-    if (dto.virus_scan_status !== undefined) updates['virus_scan_status'] = dto.virus_scan_status;
-    if (dto.access_control !== undefined) updates['access_control'] = dto.access_control;
-    if (dto.optimization !== undefined) updates['optimization'] = dto.optimization;
+    if (dto.virus_scan_status !== undefined)
+      updates['virus_scan_status'] = dto.virus_scan_status;
+    if (dto.access_control !== undefined)
+      updates['access_control'] = dto.access_control;
+    if (dto.optimization !== undefined)
+      updates['optimization'] = dto.optimization;
 
     await this.firestore.doc(ATTACHMENTS_COL, attachmentId).update(updates);
 
@@ -259,7 +267,10 @@ export class AttachmentsService {
       try {
         await this.storage.bucket().file(thumbnailPath).delete();
       } catch (error) {
-        this.logger.error(`Failed to delete thumbnail ${thumbnailPath}:`, error);
+        this.logger.error(
+          `Failed to delete thumbnail ${thumbnailPath}:`,
+          error,
+        );
       }
     }
 
@@ -272,7 +283,10 @@ export class AttachmentsService {
   /**
    * Obtiene URL de descarga firmada para un attachment
    */
-  async getDownloadUrl(attachmentId: string, userId: string): Promise<{ url: string; expires: number }> {
+  async getDownloadUrl(
+    attachmentId: string,
+    userId: string,
+  ): Promise<{ url: string; expires: number }> {
     const attachment = await this.getAttachment(attachmentId, userId);
     const storagePath = attachment['storage_path'] as string;
 
@@ -298,7 +312,9 @@ export class AttachmentsService {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      throw new BadRequestException(`File size exceeds limit of ${MAX_FILE_SIZE} bytes`);
+      throw new BadRequestException(
+        `File size exceeds limit of ${MAX_FILE_SIZE} bytes`,
+      );
     }
 
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
@@ -306,7 +322,10 @@ export class AttachmentsService {
     }
   }
 
-  private async checkUserQuota(userId: string, fileSize: number): Promise<void> {
+  private async checkUserQuota(
+    userId: string,
+    fileSize: number,
+  ): Promise<void> {
     const userSnap = await this.firestore.getDoc('users', userId);
     if (!userSnap.exists) {
       throw new NotFoundException('User not found');
@@ -314,14 +333,17 @@ export class AttachmentsService {
 
     const userData = userSnap.data() as Record<string, unknown>;
     const quotas = userData['quotas'] as Record<string, unknown>;
-    const currentUsage = quotas['storage_used_bytes'] as number || 0;
+    const currentUsage = (quotas['storage_used_bytes'] as number) || 0;
 
     if (currentUsage + fileSize > MAX_STORAGE_PER_USER) {
       throw new BadRequestException('Storage quota exceeded');
     }
   }
 
-  private async validateNoteOwnership(noteId: string, userId: string): Promise<void> {
+  private async validateNoteOwnership(
+    noteId: string,
+    userId: string,
+  ): Promise<void> {
     const noteSnap = await this.firestore.getDoc('notes', noteId);
     if (!noteSnap.exists) {
       throw new NotFoundException(`Note ${noteId} not found`);
@@ -347,7 +369,9 @@ export class AttachmentsService {
     return crypto.createHash('sha256').update(buffer).digest('hex');
   }
 
-  private async generateThumbnail(fileRef: admin.storage.File): Promise<string | undefined> {
+  private async generateThumbnail(
+    fileRef: admin.storage.File,
+  ): Promise<string | undefined> {
     try {
       // Para una implementación completa, usaríamos image processing library
       // Por ahora, devolvemos undefined
@@ -386,7 +410,10 @@ export class AttachmentsService {
     }
 
     // Extraer duración para audio/video
-    if (file.mimetype.startsWith('audio/') || file.mimetype.startsWith('video/')) {
+    if (
+      file.mimetype.startsWith('audio/') ||
+      file.mimetype.startsWith('video/')
+    ) {
       try {
         // TODO: Implementar duration extraction
         metadata.duration_seconds = 0;
@@ -398,15 +425,20 @@ export class AttachmentsService {
     return metadata;
   }
 
-  private async updateNoteAttachmentSummary(noteId: string, userId: string): Promise<void> {
+  private async updateNoteAttachmentSummary(
+    noteId: string,
+    userId: string,
+  ): Promise<void> {
     const attachmentsSnap = await this.firestore
       .collection(ATTACHMENTS_COL)
       .where('note_id', '==', noteId)
       .where('user_id', '==', userId)
       .get();
 
-    const attachments = attachmentsSnap.docs.map(doc => doc.data() as Record<string, unknown>);
-    
+    const attachments = attachmentsSnap.docs.map(
+      (doc) => doc.data() as Record<string, unknown>,
+    );
+
     let totalSize = 0;
     let hasImages = false;
     let hasDocuments = false;

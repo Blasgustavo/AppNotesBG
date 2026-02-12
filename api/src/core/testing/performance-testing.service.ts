@@ -10,12 +10,14 @@ export class PerformanceTestingService {
   /**
    * Test performance de queries críticas antes y después de índices
    */
-  async runPerformanceTests(userId: string): Promise<{
-    testName: string;
-    executionTime: number;
-    documentCount: number;
-    status: 'fast' | 'medium' | 'slow';
-  }[]> {
+  async runPerformanceTests(userId: string): Promise<
+    {
+      testName: string;
+      executionTime: number;
+      documentCount: number;
+      status: 'fast' | 'medium' | 'slow';
+    }[]
+  > {
     const results = [];
 
     this.logger.log('🧪 Starting performance tests...');
@@ -56,7 +58,7 @@ export class PerformanceTestingService {
 
   private async testListNotes(userId: string) {
     const startTime = Date.now();
-    
+
     const snap = await this.firestore
       .collection('notes')
       .where('user_id', '==', userId)
@@ -78,7 +80,7 @@ export class PerformanceTestingService {
 
   private async testNotesByTags(userId: string) {
     const startTime = Date.now();
-    
+
     const snap = await this.firestore
       .collection('notes')
       .where('user_id', '==', userId)
@@ -101,7 +103,7 @@ export class PerformanceTestingService {
 
   private async testPinnedNotes(userId: string) {
     const startTime = Date.now();
-    
+
     const snap = await this.firestore
       .collection('notes')
       .where('user_id', '==', userId)
@@ -141,7 +143,7 @@ export class PerformanceTestingService {
 
     const notebookId = notebookSnap.docs[0].id;
     const startTime = Date.now();
-    
+
     const snap = await this.firestore
       .collection('notes')
       .where('notebook_id', '==', notebookId)
@@ -180,7 +182,7 @@ export class PerformanceTestingService {
 
     const noteId = noteSnap.docs[0].id;
     const startTime = Date.now();
-    
+
     const snap = await this.firestore
       .collection('note_history')
       .where('note_id', '==', noteId)
@@ -201,7 +203,7 @@ export class PerformanceTestingService {
 
   private async testUserAttachments(userId: string) {
     const startTime = Date.now();
-    
+
     const snap = await this.firestore
       .collection('attachments')
       .where('user_id', '==', userId)
@@ -222,7 +224,7 @@ export class PerformanceTestingService {
 
   private async testUserNotebooks(userId: string) {
     const startTime = Date.now();
-    
+
     const snap = await this.firestore
       .collection('notebooks')
       .where('user_id', '==', userId)
@@ -245,7 +247,7 @@ export class PerformanceTestingService {
 
   private async testComplexQuery(userId: string) {
     const startTime = Date.now();
-    
+
     // Query con múltiples filtros
     const snap = await this.firestore
       .collection('notes')
@@ -272,7 +274,7 @@ export class PerformanceTestingService {
   private async testPagination(userId: string) {
     // Primera página
     const firstPageStart = Date.now();
-    
+
     const firstSnap = await this.firestore
       .collection('notes')
       .where('user_id', '==', userId)
@@ -282,7 +284,7 @@ export class PerformanceTestingService {
       .get();
 
     const firstPageEnd = Date.now();
-    
+
     if (firstSnap.empty) {
       return {
         testName: 'Pagination (first/next page)',
@@ -295,7 +297,7 @@ export class PerformanceTestingService {
     // Segunda página con cursor
     const lastDoc = firstSnap.docs[firstSnap.size - 1];
     const secondPageStart = Date.now();
-    
+
     await this.firestore
       .collection('notes')
       .where('user_id', '==', userId)
@@ -306,7 +308,8 @@ export class PerformanceTestingService {
       .get();
 
     const secondPageEnd = Date.now();
-    const totalExecutionTime = (secondPageEnd - secondPageStart) + (firstPageEnd - firstPageStart);
+    const totalExecutionTime =
+      secondPageEnd - secondPageStart + (firstPageEnd - firstPageStart);
 
     return {
       testName: 'Pagination (first/next page)',
@@ -318,7 +321,7 @@ export class PerformanceTestingService {
 
   private async testSearchLimits(userId: string) {
     const startTime = Date.now();
-    
+
     // Query para simular límites y paginación grandes
     const snap = await this.firestore
       .collection('notes')
@@ -349,27 +352,40 @@ export class PerformanceTestingService {
     this.logger.log('\n📊 Performance Test Results:');
     this.logger.log('=====================================');
 
-    const fastCount = results.filter(r => r.status === 'fast').length;
-    const mediumCount = results.filter(r => r.status === 'medium').length;
-    const slowCount = results.filter(r => r.status === 'slow').length;
-    const avgTime = Math.round(results.reduce((sum, r) => sum + r.executionTime, 0) / results.length);
-    const maxTime = Math.max(...results.map(r => r.executionTime));
+    const fastCount = results.filter((r) => r.status === 'fast').length;
+    const mediumCount = results.filter((r) => r.status === 'medium').length;
+    const slowCount = results.filter((r) => r.status === 'slow').length;
+    const avgTime = Math.round(
+      results.reduce((sum, r) => sum + r.executionTime, 0) / results.length,
+    );
+    const maxTime = Math.max(...results.map((r) => r.executionTime));
 
-    results.forEach(result => {
-      const icon = result.status === 'fast' ? '🟢' : result.status === 'medium' ? '🟡' : '🔴';
-      this.logger.log(`${icon} ${result.testName}: ${result.executionTime}ms (${result.documentCount} docs)`);
+    results.forEach((result) => {
+      const icon =
+        result.status === 'fast'
+          ? '🟢'
+          : result.status === 'medium'
+            ? '🟡'
+            : '🔴';
+      this.logger.log(
+        `${icon} ${result.testName}: ${result.executionTime}ms (${result.documentCount} docs)`,
+      );
     });
 
     this.logger.log('=====================================');
     this.logger.log(`📈 Performance Summary:`);
     this.logger.log(`  ✅ Fast (<100ms): ${fastCount}/${results.length}`);
-    this.logger.log(`  🟡 Medium (100-500ms): ${mediumCount}/${results.length}`);
+    this.logger.log(
+      `  🟡 Medium (100-500ms): ${mediumCount}/${results.length}`,
+    );
     this.logger.log(`  🔴 Slow (>500ms): ${slowCount}/${results.length}`);
     this.logger.log(`  ⏱️  Average: ${avgTime}ms`);
     this.logger.log(`  📊 Max: ${maxTime}ms`);
 
     if (slowCount > 0) {
-      this.logger.warn('⚠️  Some queries are performing poorly - check indexes!');
+      this.logger.warn(
+        '⚠️  Some queries are performing poorly - check indexes!',
+      );
     } else {
       this.logger.log('✅ All queries performing well!');
     }

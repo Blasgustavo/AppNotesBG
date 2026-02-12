@@ -12,6 +12,7 @@ import { NotebooksModule } from './notebooks/notebooks.module';
 import { NotesModule } from './notes/notes.module';
 import { SearchModule } from './search/search.module';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { ThemesModule } from './themes/themes.module';
 import { TestModule } from './testing/test.module';
 
 @Module({
@@ -37,9 +38,8 @@ import { TestModule } from './testing/test.module';
     NotesModule,
     SearchModule,
     AttachmentsModule,
-    SearchModule,
-    AttachmentsModule,
-    
+    ThemesModule,
+
     // Módulos de testing (solo desarrollo)
     ...(process.env.NODE_ENV !== 'production' ? [TestModule] : []),
 

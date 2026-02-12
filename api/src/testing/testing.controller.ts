@@ -34,11 +34,15 @@ export class TestingController {
   /** POST /api/v1/testing/performance — ejecutar tests de rendimiento */
   @Post('performance')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Ejecutar tests de rendimiento de Firestore',
-    description: 'Mide el rendimiento de queries críticas antes y después de índices'
+    description:
+      'Mide el rendimiento de queries críticas antes y después de índices',
   })
-  @ApiResponse({ status: 200, description: 'Resultados de tests de rendimiento' })
+  @ApiResponse({
+    status: 200,
+    description: 'Resultados de tests de rendimiento',
+  })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 403, description: 'Endpoint solo para desarrollo' })
   async runPerformanceTests(@Req() req: AuthenticatedRequest) {
@@ -52,9 +56,9 @@ export class TestingController {
 
   /** GET /api/v1/testing/indexes-status — verificar estado de índices */
   @Get('indexes-status')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Verificar estado de índices Firestore',
-    description: 'Verifica qué índices están disponibles y su estado'
+    description: 'Verifica qué índices están disponibles y su estado',
   })
   @ApiResponse({ status: 200, description: 'Estado de los índices' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -67,7 +71,7 @@ export class TestingController {
       projectId: process.env.FIREBASE_PROJECT_ID || 'appnotesbg-app',
       requiredIndexes: [
         'user_id+updated_at',
-        'user_id+tags+updated_at', 
+        'user_id+tags+updated_at',
         'user_id+is_pinned+updated_at',
         'notebook_id+updated_at',
         'user_id+sync_status',
@@ -84,9 +88,9 @@ export class TestingController {
         'user_id+is_favorite+sort_order (notebooks)',
         'invited_email+status (invitations)',
         'invitation_token (invitations)',
-        'expires_at (invitations)'
+        'expires_at (invitations)',
       ],
-      note: 'Use Firebase Console or gcloud CLI to verify actual index status'
+      note: 'Use Firebase Console or gcloud CLI to verify actual index status',
     };
   }
 }

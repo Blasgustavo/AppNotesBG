@@ -32,17 +32,44 @@ export class SearchController {
 
   /** GET /api/v1/search — búsqueda full-text de notas */
   @Get()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Buscar notas con texto completo y filtros',
-    description: 'Busca notas usando Algolia con filtros por tags, libreta, etc.'
+    description:
+      'Busca notas usando Algolia con filtros por tags, libreta, etc.',
   })
   @ApiQuery({ name: 'q', required: true, description: 'Término de búsqueda' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Límite de resultados (default: 20)' })
-  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Offset para paginación' })
-  @ApiQuery({ name: 'tags', required: false, description: 'Filtrar por tags (separados por coma)' })
-  @ApiQuery({ name: 'notebook', required: false, description: 'Filtrar por nombre de libreta' })
-  @ApiQuery({ name: 'pinned', required: false, type: Boolean, description: 'Filtrar por notas fijadas' })
-  @ApiResponse({ status: 200, description: 'Resultados de búsqueda con highlighting' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Límite de resultados (default: 20)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Offset para paginación',
+  })
+  @ApiQuery({
+    name: 'tags',
+    required: false,
+    description: 'Filtrar por tags (separados por coma)',
+  })
+  @ApiQuery({
+    name: 'notebook',
+    required: false,
+    description: 'Filtrar por nombre de libreta',
+  })
+  @ApiQuery({
+    name: 'pinned',
+    required: false,
+    type: Boolean,
+    description: 'Filtrar por notas fijadas',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Resultados de búsqueda con highlighting',
+  })
   @ApiResponse({ status: 400, description: 'Parámetros inválidos' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async search(
@@ -59,7 +86,12 @@ export class SearchController {
       userId: req.user.uid,
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
-      tags: tags ? tags.split(',').map(t => t.trim()).filter(t => t) : undefined,
+      tags: tags
+        ? tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter((t) => t)
+        : undefined,
       notebookId: notebook?.trim() || undefined,
       isPinned: pinned !== undefined ? pinned === 'true' : undefined,
     };
@@ -69,12 +101,21 @@ export class SearchController {
 
   /** GET /api/v1/search/suggestions — autocompletar para búsqueda */
   @Get('suggestions')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener sugerencias de autocompletar',
-    description: 'Sugerencias basadas en títulos de notas existentes'
+    description: 'Sugerencias basadas en títulos de notas existentes',
   })
-  @ApiQuery({ name: 'q', required: true, description: 'Query para sugerencias (mínimo 2 caracteres)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Límite de sugerencias (default: 5)' })
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    description: 'Query para sugerencias (mínimo 2 caracteres)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Límite de sugerencias (default: 5)',
+  })
   @ApiResponse({ status: 200, description: 'Array de sugerencias' })
   @ApiResponse({ status: 400, description: 'Query demasiado corto' })
   async getSuggestions(
@@ -93,9 +134,9 @@ export class SearchController {
 
   /** GET /api/v1/search/stats — estadísticas del índice (admin) */
   @Get('stats')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener estadísticas del índice de búsqueda',
-    description: 'Información sobre tamaño y uso del índice Algolia'
+    description: 'Información sobre tamaño y uso del índice Algolia',
   })
   @ApiResponse({ status: 200, description: 'Estadísticas del índice' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
