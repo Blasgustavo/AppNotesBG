@@ -1,4 +1,15 @@
-import { IsString, IsEnum, IsOptional, IsObject, IsNumber, IsEmail, IsBoolean, Min, Max, Length, Matches } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+  IsEmail,
+  IsBoolean,
+  Min,
+  Max,
+  Length,
+  Matches,
+} from 'class-validator';
 
 export class CreateInvitationDto {
   @IsString()
@@ -39,12 +50,16 @@ export class UpdateInvitationDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, { message: 'Invalid IP address format' })
+  @Matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, {
+    message: 'Invalid IP address format',
+  })
   accepted_ip?: string;
 
   @IsOptional()
   @IsString()
-  @Length(10, 500, { message: 'User agent must be between 10 and 500 characters' })
+  @Length(10, 500, {
+    message: 'User agent must be between 10 and 500 characters',
+  })
   accepted_user_agent?: string;
 }
 
@@ -55,11 +70,15 @@ export class AcceptInvitationDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, { message: 'Invalid IP address format' })
+  @Matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, {
+    message: 'Invalid IP address format',
+  })
   ip_address?: string;
 
   @IsOptional()
   @IsString()
-  @Length(10, 500, { message: 'User agent must be between 10 and 500 characters' })
+  @Length(10, 500, {
+    message: 'User agent must be between 10 and 500 characters',
+  })
   user_agent?: string;
 }

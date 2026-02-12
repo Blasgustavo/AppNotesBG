@@ -6,8 +6,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FirestoreService } from '../core/firestore';
-import { extractTextFromTipTap } from '../../../shared/types/tiptap.types';
-import type { CreateNoteDto, UpdateNoteDto, QueryNotesDto } from './dto/create-note.dto';
+import { TipTapService } from '../core/tiptap';
+import type {
+  CreateNoteDto,
+  UpdateNoteDto,
+  QueryNotesDto,
+} from './dto/create-note.dto';
+import type { TipTapDocument } from '../../../../shared/types/tiptap.types';
 
 const NOTES_COL = 'notes';
 const HISTORY_COL = 'note_history';
@@ -19,7 +24,10 @@ const SNAPSHOT_INTERVAL = 10;
 export class NotesService {
   private readonly logger = new Logger(NotesService.name);
 
-  constructor(private readonly firestore: FirestoreService) {}
+  constructor(
+    private readonly firestore: FirestoreService,
+    private readonly tipTap: TipTapService,
+  ) {}
 
   // ─────────────────────────────────────────────
   // CRUD
@@ -52,17 +60,20 @@ export class NotesService {
     }
 
     const snap = await q.get();
-    return snap.docs.map(d => d.data());
+    return snap.docs.map((d) => d.data());
   }
 
   /** Obtiene una nota verificando ownership */
   async findOne(noteId: string, userId: string) {
     const snap = await this.firestore.getDoc(NOTES_COL, noteId);
-    if (!snap.exists) throw new NotFoundException(`Nota ${noteId} no encontrada`);
+    if (!snap.exists)
+      throw new NotFoundException(`Nota ${noteId} no encontrada`);
 
-    const data = snap.data()!;
-    if (data['user_id'] !== userId) throw new ForbiddenException('Sin acceso a esta nota');
-    if (data['deleted_at']) throw new NotFoundException('Esta nota fue eliminada');
+    const data = snap.data() as Record<string, unknown>;
+    if (data['user_id'] !== userId)
+      throw new ForbiddenException('Sin acceso a esta nota');
+    if (data['deleted_at'])
+      throw new NotFoundException('Esta nota fue eliminada');
 
     return data;
   }
@@ -74,17 +85,31 @@ export class NotesService {
 
     const now = this.firestore.serverTimestamp;
     const noteRef = this.firestore.collection(NOTES_COL).doc();
-    const plainText = extractTextFromTipTap(dto.content as any);
-    const wordCount = plainText.split(/\s+/).filter(w => w.length > 0).length;
+
+    // Validar y sanitizar contenido TipTap
+    const validation = this.tipTap.validateSchema(
+      dto.content as TipTapDocument,
+    );
+    if (!validation.isValid) {
+      throw new BadRequestException(
+        `Invalid TipTap content: ${validation.errors.join(', ')}`,
+      );
+    }
+
+    const sanitizedContent = this.tipTap.sanitizeContent(
+      dto.content as TipTapDocument,
+    );
+    const metrics = this.tipTap.calculateMetrics(sanitizedContent);
+    const contentHash = this.tipTap.generateContentHash(sanitizedContent);
 
     const note = {
       id: noteRef.id,
       user_id: userId,
       notebook_id: dto.notebook_id,
       title: dto.title,
-      content: dto.content,
-      content_hash: dto.content_hash ?? null,
-      checksum: dto.checksum ?? null,
+      content: sanitizedContent,
+      content_hash: contentHash,
+      checksum: this.tipTap.generateContentHash(sanitizedContent),
       version: 1,
       sync_status: 'synced',
       last_sync_at: now,
@@ -97,8 +122,8 @@ export class NotesService {
       is_pinned: dto.is_pinned ?? false,
       is_template: dto.is_template ?? false,
       template_id: dto.template_id ?? null,
-      word_count: wordCount,
-      reading_time_minutes: Math.ceil(wordCount / 200),
+      word_count: metrics.word_count,
+      reading_time_minutes: metrics.reading_time_minutes,
       style: dto.style ?? {
         background_color: '#FFFFFF',
         text_color: '#333333',
@@ -110,7 +135,12 @@ export class NotesService {
         weight: 'normal',
         line_height: 1.4,
       },
-      attachments_summary: { count: 0, total_size_bytes: 0, has_images: false, has_documents: false },
+      attachments_summary: {
+        count: 0,
+        total_size_bytes: 0,
+        has_images: false,
+        has_documents: false,
+      },
       audit: {
         created_ip: ipAddress,
         last_updated_by: userId,
@@ -132,8 +162,8 @@ export class NotesService {
       version: 1,
       timestamp: now,
       is_snapshot: true,
-      content_hash: dto.content_hash ?? null,
-      snapshot: dto.content,
+      content_hash: contentHash,
+      snapshot: sanitizedContent,
       diff: null,
       change_summary: 'Nota creada',
       author_ip: ipAddress,
@@ -154,7 +184,12 @@ export class NotesService {
   }
 
   /** Actualiza una nota y guarda diff en note_history */
-  async update(noteId: string, userId: string, dto: UpdateNoteDto, ipAddress: string) {
+  async update(
+    noteId: string,
+    userId: string,
+    dto: UpdateNoteDto,
+    ipAddress: string,
+  ) {
     const existing = await this.findOne(noteId, userId);
 
     // Si cambia de notebook, verificar ownership del nuevo notebook
@@ -164,23 +199,38 @@ export class NotesService {
 
     const nextVersion = (existing['version'] ?? 1) + 1;
     const now = this.firestore.serverTimestamp;
-    const plainText = extractTextFromTipTap(dto.content as any);
-    const wordCount = plainText.split(/\s+/).filter(w => w.length > 0).length;
-    const isSnapshot = nextVersion === 1 || nextVersion % SNAPSHOT_INTERVAL === 0;
+
+    // Validar y sanitizar contenido TipTap
+    const validation = this.tipTap.validateSchema(
+      dto.content as TipTapDocument,
+    );
+    if (!validation.isValid) {
+      throw new BadRequestException(
+        `Invalid TipTap content: ${validation.errors.join(', ')}`,
+      );
+    }
+
+    const sanitizedContent = this.tipTap.sanitizeContent(
+      dto.content as TipTapDocument,
+    );
+    const metrics = this.tipTap.calculateMetrics(sanitizedContent);
+    const contentHash = this.tipTap.generateContentHash(sanitizedContent);
+    const isSnapshot =
+      nextVersion === 1 || nextVersion % SNAPSHOT_INTERVAL === 0;
 
     const updates: Record<string, unknown> = {
       title: dto.title,
-      content: dto.content,
-      content_hash: dto.content_hash ?? null,
-      checksum: dto.checksum ?? null,
+      content: sanitizedContent,
+      content_hash: contentHash,
+      checksum: this.tipTap.generateContentHash(sanitizedContent),
       version: nextVersion,
       sync_status: 'synced',
       last_sync_at: now,
       updated_at: now,
       tags: dto.tags ?? existing['tags'],
       is_pinned: dto.is_pinned ?? existing['is_pinned'],
-      word_count: wordCount,
-      reading_time_minutes: Math.ceil(wordCount / 200),
+      word_count: metrics.word_count,
+      reading_time_minutes: metrics.reading_time_minutes,
       'audit.last_updated_by': userId,
       'audit.last_updated_ip': ipAddress,
     };
@@ -203,8 +253,8 @@ export class NotesService {
       version: nextVersion,
       timestamp: now,
       is_snapshot: isSnapshot,
-      content_hash: dto.content_hash ?? null,
-      snapshot: isSnapshot ? dto.content : null,
+      content_hash: contentHash,
+      snapshot: isSnapshot ? sanitizedContent : null,
       diff: isSnapshot ? null : { added: '', removed: '' }, // diff real: post-MVP
       change_summary: `Versión ${nextVersion}`,
       author_ip: ipAddress,
@@ -226,8 +276,9 @@ export class NotesService {
   async softDelete(noteId: string, userId: string): Promise<void> {
     await this.findOne(noteId, userId);
 
-    const note = await this.firestore.getDoc(NOTES_COL, noteId);
-    const notebookId = note.data()!['notebook_id'];
+    const noteSnap = await this.firestore.getDoc(NOTES_COL, noteId);
+    const noteData = noteSnap.data() as Record<string, unknown>;
+    const notebookId = noteData['notebook_id'] as string;
 
     const batch = this.firestore.batch();
     batch.update(this.firestore.doc(NOTES_COL, noteId), {
@@ -242,17 +293,22 @@ export class NotesService {
   }
 
   /** Archiva o desarchiva una nota */
-  async toggleArchive(noteId: string, userId: string): Promise<Record<string, unknown>> {
+  async toggleArchive(
+    noteId: string,
+    userId: string,
+  ): Promise<Record<string, unknown>> {
     const existing = await this.findOne(noteId, userId);
-    const isArchived = !!existing['archived_at'];
+    const isArchived = !!(existing[
+      'archived_at'
+    ] as FirebaseFirestore.Timestamp | null);
 
     await this.firestore.doc(NOTES_COL, noteId).update({
       archived_at: isArchived ? null : this.firestore.serverTimestamp,
       updated_at: this.firestore.serverTimestamp,
     });
 
-    const updated = await this.firestore.getDoc(NOTES_COL, noteId);
-    return updated.data()! as Record<string, unknown>;
+    const updatedSnap = await this.firestore.getDoc(NOTES_COL, noteId);
+    return updatedSnap.data()! as Record<string, unknown>;
   }
 
   // ─────────────────────────────────────────────
@@ -270,16 +326,21 @@ export class NotesService {
       .limit(MAX_HISTORY)
       .get();
 
-    return snap.docs.map(d => {
+    return snap.docs.map((d) => {
       const data = d.data();
       // No devolver el snapshot completo en el listado por performance
-      const { snapshot: _s, ...rest } = data as Record<string, unknown>;
+      const { snapshot: _snapshot, ...rest } = data as Record<string, unknown>;
       return rest;
     });
   }
 
   /** Restaura una nota a una versión anterior */
-  async restoreVersion(noteId: string, userId: string, version: number, ipAddress: string) {
+  async restoreVersion(
+    noteId: string,
+    userId: string,
+    version: number,
+    ipAddress: string,
+  ) {
     await this.findOne(noteId, userId);
 
     // Buscar el snapshot más cercano <= version
@@ -293,11 +354,13 @@ export class NotesService {
       .get();
 
     if (histSnap.empty) {
-      throw new BadRequestException(`No se encontró snapshot para la versión ${version}`);
+      throw new BadRequestException(
+        `No se encontró snapshot para la versión ${version}`,
+      );
     }
 
-    const histData = histSnap.docs[0].data();
-    const restoredContent = histData['snapshot'];
+    const histData = histSnap.docs[0].data() as Record<string, unknown>;
+    const restoredContent = histData['snapshot'] as TipTapDocument;
 
     if (!restoredContent) {
       throw new BadRequestException('El snapshot está vacío');
@@ -310,13 +373,15 @@ export class NotesService {
 
     // Guardar como nueva versión
     const noteSnap = await this.firestore.getDoc(NOTES_COL, noteId);
-    const currentVersion = noteSnap.data()!['version'] as number;
+    const noteData = noteSnap.data() as Record<string, unknown>;
     const updateDto = {
-      ...noteSnap.data()!,
+      ...noteData,
       content: restoredContent,
     } as unknown as UpdateNoteDto;
 
-    this.logger.log(`Nota ${noteId} restaurada a versión ${version} por ${userId}`);
+    this.logger.log(
+      `Nota ${noteId} restaurada a versión ${version} por ${userId}`,
+    );
     return this.update(noteId, userId, updateDto, ipAddress);
   }
 
@@ -324,10 +389,16 @@ export class NotesService {
   // HELPERS PRIVADOS
   // ─────────────────────────────────────────────
 
-  private async assertNotebookOwnership(notebookId: string, userId: string): Promise<void> {
-    const snap = await this.firestore.getDoc(NOTEBOOKS_COL, notebookId);
-    if (!snap.exists) throw new NotFoundException(`Libreta ${notebookId} no encontrada`);
-    if (snap.data()!['user_id'] !== userId) throw new ForbiddenException('Sin acceso a esta libreta');
+  private async assertNotebookOwnership(
+    notebookId: string,
+    userId: string,
+  ): Promise<void> {
+    const notebookSnap = await this.firestore.getDoc(NOTEBOOKS_COL, notebookId);
+    if (!notebookSnap.exists)
+      throw new NotFoundException(`Libreta ${notebookId} no encontrada`);
+    const notebookData = notebookSnap.data() as Record<string, unknown>;
+    if (notebookData['user_id'] !== userId)
+      throw new ForbiddenException('Sin acceso a esta libreta');
   }
 
   /** Elimina los registros de historial más antiguos si supera MAX_HISTORY */
@@ -342,8 +413,10 @@ export class NotesService {
 
     const toDelete = snap.docs.slice(MAX_HISTORY);
     const batch = this.firestore.batch();
-    toDelete.forEach(doc => batch.delete(doc.ref));
+    toDelete.forEach((doc) => batch.delete(doc.ref));
     await batch.commit();
-    this.logger.log(`Pruned ${toDelete.length} history entries for note ${noteId}`);
+    this.logger.log(
+      `Pruned ${toDelete.length} history entries for note ${noteId}`,
+    );
   }
 }

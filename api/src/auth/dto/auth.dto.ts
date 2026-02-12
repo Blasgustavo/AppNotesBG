@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsUrl } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 export class AuthMeResponseDto {
   id!: string;

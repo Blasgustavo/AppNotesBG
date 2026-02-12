@@ -51,10 +51,7 @@ export class NotebooksController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva libreta' })
   @ApiResponse({ status: 201, description: 'Libreta creada' })
-  create(
-    @Body() dto: CreateNotebookDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  create(@Body() dto: CreateNotebookDto, @Req() req: AuthenticatedRequest) {
     const ip =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
       req.socket.remoteAddress ??

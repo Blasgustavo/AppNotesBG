@@ -1198,7 +1198,9 @@ Usuario → clic "Continuar con Google"
 | **Subagentes** | 8 | note-creator, note-editor, note-history, algolia-indexer, token-validator, summarizer, tag-suggester, firestore-rules, storage-rules |
 | **Core state services** | 4 | auth-state, notes-state, editor-state, ui-state |
 | **Shared types** | 1 | tiptap.types.ts |
-| **Guards Angular** | 2 | authGuard, publicGuard |
+| **Guards Angular** | 2 | authGuard, publicGuard | |
+| **Firestore Service** | 1 | `FirestoreService` global con helpers para acceso desde cualquier módulo |
+| **Exception Filter** | 1 | `HttpExceptionFilter` global para respuestas consistentes |
 | **Módulos NestJS** | 1 | AuthModule |
 
 ### 🎯 Próximos pasos de desarrollo (MVP)

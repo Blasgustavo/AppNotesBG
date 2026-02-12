@@ -116,12 +116,16 @@ export class CreateNoteDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^[a-fA-F0-9]{64}$/, { message: 'Content hash must be a valid SHA-256 hash' })
+  @Matches(/^[a-fA-F0-9]{64}$/, {
+    message: 'Content hash must be a valid SHA-256 hash',
+  })
   content_hash?: string;
 
   @IsOptional()
   @IsString()
-  @Matches(/^[a-fA-F0-9]{32}$/, { message: 'Checksum must be a valid MD5 hash' })
+  @Matches(/^[a-fA-F0-9]{32}$/, {
+    message: 'Checksum must be a valid MD5 hash',
+  })
   checksum?: string;
 
   @IsOptional()

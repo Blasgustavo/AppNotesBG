@@ -23,7 +23,7 @@ export class NotebooksService {
       .orderBy('sort_order', 'asc')
       .get();
 
-    return snap.docs.map(d => d.data());
+    return snap.docs.map((d) => d.data());
   }
 
   /** Obtiene una libreta por ID, verificando que pertenece al usuario */
@@ -99,7 +99,9 @@ export class NotebooksService {
 
     // No se puede renombrar la libreta por defecto
     if (existing['is_default'] && dto.name && dto.name !== existing['name']) {
-      throw new BadRequestException('No se puede renombrar la libreta por defecto');
+      throw new BadRequestException(
+        'No se puede renombrar la libreta por defecto',
+      );
     }
 
     const updates: Record<string, unknown> = {
@@ -125,7 +127,9 @@ export class NotebooksService {
     const existing = await this.findOne(notebookId, userId);
 
     if (existing['is_default']) {
-      throw new BadRequestException('No se puede eliminar la libreta por defecto');
+      throw new BadRequestException(
+        'No se puede eliminar la libreta por defecto',
+      );
     }
 
     if (existing['note_count'] > 0) {

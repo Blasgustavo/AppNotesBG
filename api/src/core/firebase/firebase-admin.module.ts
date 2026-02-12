@@ -19,16 +19,22 @@ export const FIREBASE_ADMIN = 'FIREBASE_ADMIN';
         }
 
         // En desarrollo: usar service-account.json si existe
-        const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
+        const serviceAccountPath = path.resolve(
+          process.cwd(),
+          'service-account.json',
+        );
         if (fs.existsSync(serviceAccountPath)) {
-          const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+          const serviceAccount = JSON.parse(
+            fs.readFileSync(serviceAccountPath, 'utf8'),
+          );
           return admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
           });
         }
 
         // En producción: usar variables de entorno
-        const privateKey = config.get<string>('FIREBASE_PRIVATE_KEY')
+        const privateKey = config
+          .get<string>('FIREBASE_PRIVATE_KEY')
           ?.replace(/\\n/g, '\n');
 
         return admin.initializeApp({

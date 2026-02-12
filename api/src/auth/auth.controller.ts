@@ -1,5 +1,10 @@
 import { Controller, Post, Req, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import type { AuthenticatedRequest } from '../core/firebase';
 
@@ -17,8 +22,13 @@ export class AuthController {
    */
   @Post('me')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login o registro del usuario autenticado con Firebase' })
-  @ApiResponse({ status: 200, description: 'Perfil del usuario devuelto correctamente' })
+  @ApiOperation({
+    summary: 'Login o registro del usuario autenticado con Firebase',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Perfil del usuario devuelto correctamente',
+  })
   @ApiResponse({ status: 401, description: 'Token inválido o expirado' })
   async me(@Req() req: AuthenticatedRequest) {
     const ipAddress =

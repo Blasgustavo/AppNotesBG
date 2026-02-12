@@ -1,4 +1,14 @@
-import { IsString, IsEnum, IsOptional, IsObject, IsNumber, IsEmail, IsBoolean, Min, Max, Length, Matches } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsObject,
+  IsNumber,
+  Min,
+  Max,
+  Length,
+  Matches,
+} from 'class-validator';
 
 export class CreateAttachmentDto {
   @IsString()
@@ -15,7 +25,7 @@ export class CreateAttachmentDto {
   type!: 'image' | 'document' | 'audio' | 'video' | 'other';
 
   @IsString()
-  @Matches(/^[a-zA-Z0-9\/-]+$/, { message: 'Invalid MIME type format' })
+  @Matches(/^[a-zA-Z0-9/-]+$/, { message: 'Invalid MIME type format' })
   mime_type!: string;
 
   @IsNumber()
@@ -24,12 +34,16 @@ export class CreateAttachmentDto {
   size_bytes!: number;
 
   @IsString()
-  @Matches(/^[a-fA-F0-9]{64}$/, { message: 'File hash must be a valid SHA-256 hash' })
+  @Matches(/^[a-fA-F0-9]{64}$/, {
+    message: 'File hash must be a valid SHA-256 hash',
+  })
   file_hash!: string;
 
   @IsOptional()
   @IsString()
-  @Matches(/^[a-fA-F0-9]{64}$/, { message: 'Original file hash must be a valid SHA-256 hash' })
+  @Matches(/^[a-fA-F0-9]{64}$/, {
+    message: 'Original file hash must be a valid SHA-256 hash',
+  })
   is_duplicate_of?: string;
 
   @IsOptional()

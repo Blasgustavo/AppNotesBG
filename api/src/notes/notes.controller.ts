@@ -44,7 +44,9 @@ export class NotesController {
 
   /** GET /api/v1/notes — lista notas con filtros y paginación */
   @Get()
-  @ApiOperation({ summary: 'Listar notas del usuario (con filtros y paginación)' })
+  @ApiOperation({
+    summary: 'Listar notas del usuario (con filtros y paginación)',
+  })
   @ApiQuery({ name: 'notebook_id', required: false })
   @ApiQuery({ name: 'is_pinned', required: false, type: Boolean })
   @ApiQuery({ name: 'archived', required: false, type: Boolean })
@@ -69,16 +71,24 @@ export class NotesController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva nota' })
-  @ApiResponse({ status: 201, description: 'Nota creada con snapshot v1 en historial' })
+  @ApiResponse({
+    status: 201,
+    description: 'Nota creada con snapshot v1 en historial',
+  })
   create(@Body() dto: CreateNoteDto, @Req() req: AuthenticatedRequest) {
     return this.notesService.create(req.user.uid, dto, this.ip(req));
   }
 
   /** PATCH /api/v1/notes/:id — actualiza una nota */
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar contenido, título, tags o estilo de una nota' })
+  @ApiOperation({
+    summary: 'Actualizar contenido, título, tags o estilo de una nota',
+  })
   @ApiParam({ name: 'id', description: 'ID de la nota' })
-  @ApiResponse({ status: 200, description: 'Nota actualizada con nueva versión en historial' })
+  @ApiResponse({
+    status: 200,
+    description: 'Nota actualizada con nueva versión en historial',
+  })
   update(
     @Param('id') id: string,
     @Body() dto: UpdateNoteDto,
@@ -90,7 +100,9 @@ export class NotesController {
   /** DELETE /api/v1/notes/:id — soft delete */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Eliminar nota (soft delete — se mueve a la papelera)' })
+  @ApiOperation({
+    summary: 'Eliminar nota (soft delete — se mueve a la papelera)',
+  })
   @ApiParam({ name: 'id', description: 'ID de la nota' })
   @ApiResponse({ status: 204, description: 'Nota eliminada (soft delete)' })
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
@@ -110,7 +122,10 @@ export class NotesController {
   @Get(':id/history')
   @ApiOperation({ summary: 'Obtener historial de versiones de una nota' })
   @ApiParam({ name: 'id', description: 'ID de la nota' })
-  @ApiResponse({ status: 200, description: 'Lista de versiones (sin snapshot completo)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de versiones (sin snapshot completo)',
+  })
   getHistory(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.notesService.getHistory(id, req.user.uid);
   }
@@ -120,12 +135,20 @@ export class NotesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Restaurar una versión anterior de la nota' })
   @ApiParam({ name: 'id', description: 'ID de la nota' })
-  @ApiResponse({ status: 200, description: 'Nota restaurada a la versión especificada' })
+  @ApiResponse({
+    status: 200,
+    description: 'Nota restaurada a la versión especificada',
+  })
   restore(
     @Param('id') id: string,
     @Body() dto: RestoreVersionDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.notesService.restoreVersion(id, req.user.uid, dto.version, this.ip(req));
+    return this.notesService.restoreVersion(
+      id,
+      req.user.uid,
+      dto.version,
+      this.ip(req),
+    );
   }
 }

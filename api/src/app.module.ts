@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FirebaseAdminModule, FirebaseAuthGuard } from './core/firebase';
 import { FirestoreModule } from './core/firestore';
+import { TipTapModule } from './core/tiptap';
 import { AuthModule } from './auth/auth.module';
 import { NotebooksModule } from './notebooks/notebooks.module';
 import { NotesModule } from './notes/notes.module';
@@ -24,15 +25,20 @@ import { NotesModule } from './notes/notes.module';
     // Firestore — servicio global de acceso a la base de datos
     FirestoreModule,
 
+    // TipTap — procesamiento y validación de contenido
+    TipTapModule,
+
     // Módulos de dominio
     AuthModule,
     NotebooksModule,
     NotesModule,
+    SearchModule,
+    AttachmentsModule,
 
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,   // 60 segundos
-        limit: 100,   // 100 peticiones por minuto por IP
+        ttl: 60000, // 60 segundos
+        limit: 100, // 100 peticiones por minuto por IP
       },
     ]),
   ],

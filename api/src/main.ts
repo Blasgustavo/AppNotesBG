@@ -11,7 +11,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // CORS configuration
-  const corsOrigin = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:4200'];
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',') || [
+    'http://localhost:4200',
+  ];
   app.enableCors({
     origin: corsOrigin,
     credentials: true,
@@ -21,12 +23,14 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // ValidationPipe global para DTOs con class-validator
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-    transformOptions: { enableImplicitConversion: true },
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   // Swagger API documentation
   const config = new DocumentBuilder()
@@ -40,4 +44,4 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

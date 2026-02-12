@@ -1,24 +1,60 @@
-import { IsString, IsEnum, IsOptional, IsObject, IsNumber, IsBoolean, Min, Matches, Length } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsObject,
+  IsNumber,
+  Min,
+  Matches,
+  Length,
+} from 'class-validator';
 
 export class CreateAuditLogDto {
   @IsString()
   user_id!: string;
 
-  @IsEnum(['create', 'update', 'delete', 'read', 'share', 'download', 'login', 'logout'])
-  action!: 'create' | 'update' | 'delete' | 'read' | 'share' | 'download' | 'login' | 'logout';
+  @IsEnum([
+    'create',
+    'update',
+    'delete',
+    'read',
+    'share',
+    'download',
+    'login',
+    'logout',
+  ])
+  action!:
+    | 'create'
+    | 'update'
+    | 'delete'
+    | 'read'
+    | 'share'
+    | 'download'
+    | 'login'
+    | 'logout';
 
   @IsEnum(['note', 'notebook', 'attachment', 'user', 'theme', 'invitation'])
-  resource_type!: 'note' | 'notebook' | 'attachment' | 'user' | 'theme' | 'invitation';
+  resource_type!:
+    | 'note'
+    | 'notebook'
+    | 'attachment'
+    | 'user'
+    | 'theme'
+    | 'invitation';
 
   @IsString()
   resource_id!: string;
 
   @IsString()
-  @Matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, { message: 'Invalid IP address format' })
+  @Matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, {
+    message: 'Invalid IP address format',
+  })
   ip_address!: string;
 
   @IsString()
-  @Length(10, 500, { message: 'User agent must be between 10 and 500 characters' })
+  @Length(10, 500, {
+    message: 'User agent must be between 10 and 500 characters',
+  })
   user_agent!: string;
 
   @IsOptional()
@@ -49,12 +85,35 @@ export class QueryAuditLogsDto {
   user_id?: string;
 
   @IsOptional()
-  @IsEnum(['create', 'update', 'delete', 'read', 'share', 'download', 'login', 'logout'])
-  action?: 'create' | 'update' | 'delete' | 'read' | 'share' | 'download' | 'login' | 'logout';
+  @IsEnum([
+    'create',
+    'update',
+    'delete',
+    'read',
+    'share',
+    'download',
+    'login',
+    'logout',
+  ])
+  action?:
+    | 'create'
+    | 'update'
+    | 'delete'
+    | 'read'
+    | 'share'
+    | 'download'
+    | 'login'
+    | 'logout';
 
   @IsOptional()
   @IsEnum(['note', 'notebook', 'attachment', 'user', 'theme', 'invitation'])
-  resource_type?: 'note' | 'notebook' | 'attachment' | 'user' | 'theme' | 'invitation';
+  resource_type?:
+    | 'note'
+    | 'notebook'
+    | 'attachment'
+    | 'user'
+    | 'theme'
+    | 'invitation';
 
   @IsOptional()
   @IsString()
