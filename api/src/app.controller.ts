@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { AppService } from './app.service';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { AppService, HealthStatus } from './app.service';
 import { Public } from './core/firebase';
 
 @ApiTags('health')
@@ -10,8 +10,9 @@ export class AppController {
 
   @Get()
   @Public()
-  @ApiOperation({ summary: 'Health check' })
-  getHello(): string {
-    return this.appService.getHello();
+  @ApiOperation({ summary: 'Health check del sistema' })
+  @ApiResponse({ status: 200, description: 'Estado de salud de la aplicación' })
+  async getHealth(): Promise<HealthStatus> {
+    return this.appService.getHealth();
   }
 }
