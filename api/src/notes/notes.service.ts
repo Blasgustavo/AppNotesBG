@@ -48,7 +48,7 @@ export class NotesService {
     if (query.is_pinned !== undefined) {
       q = q.where('is_pinned', '==', query.is_pinned);
     }
-    
+
     // M-2: Firestore requiere orderBy en el mismo campo que inequality filter
     // Cuando hay filter != en archived_at, debemos orderBy archived_at primero
     if (query.archived === true) {
@@ -101,18 +101,14 @@ export class NotesService {
     const noteRef = this.firestore.collection(NOTES_COL).doc();
 
     // Validar y sanitizar contenido TipTap
-    const validation = this.tipTap.validateSchema(
-      dto.content as TipTapDocument,
-    );
+    const validation = this.tipTap.validateSchema(dto.content);
     if (!validation.isValid) {
       throw new BadRequestException(
         `Invalid TipTap content: ${validation.errors.join(', ')}`,
       );
     }
 
-    const sanitizedContent = this.tipTap.sanitizeContent(
-      dto.content as TipTapDocument,
-    );
+    const sanitizedContent = this.tipTap.sanitizeContent(dto.content);
     const metrics = this.tipTap.calculateMetrics(sanitizedContent);
     const contentHash = this.tipTap.generateContentHash(sanitizedContent);
 
@@ -131,7 +127,9 @@ export class NotesService {
       updated_at: now,
       deleted_at: null,
       archived_at: null,
-      reminder_at: dto.reminder_at ? this.firestore.timestampFromDate(new Date(dto.reminder_at)) : null,
+      reminder_at: dto.reminder_at
+        ? this.firestore.timestampFromDate(new Date(dto.reminder_at))
+        : null,
       tags: dto.tags ?? [],
       is_pinned: dto.is_pinned ?? false,
       is_template: dto.is_template ?? false,
@@ -155,24 +153,40 @@ export class NotesService {
         has_images: false,
         has_documents: false,
       },
-      sharing: dto.sharing ? {
-        public_slug: dto.sharing.public_slug || null,
-        public_access_expires: dto.sharing.public_access_expires ? this.firestore.timestampFromDate(new Date(dto.sharing.public_access_expires)) : null,
-        collaborators: dto.sharing.collaborators || [],
-      } : {
-        public_slug: null,
-        public_access_expires: null,
-        collaborators: [],
-      },
-      locking: dto.locking ? {
-        locked_by: dto.locking.locked_by || null,
-        locked_at: dto.locking.locked_at ? this.firestore.timestampFromDate(new Date(dto.locking.locked_at)) : null,
-        lock_expires: dto.locking.lock_expires ? this.firestore.timestampFromDate(new Date(dto.locking.lock_expires)) : null,
-      } : {
-        locked_by: null,
-        locked_at: null,
-        lock_expires: null,
-      },
+      sharing: dto.sharing
+        ? {
+            public_slug: dto.sharing.public_slug || null,
+            public_access_expires: dto.sharing.public_access_expires
+              ? this.firestore.timestampFromDate(
+                  new Date(dto.sharing.public_access_expires),
+                )
+              : null,
+            collaborators: dto.sharing.collaborators || [],
+          }
+        : {
+            public_slug: null,
+            public_access_expires: null,
+            collaborators: [],
+          },
+      locking: dto.locking
+        ? {
+            locked_by: dto.locking.locked_by || null,
+            locked_at: dto.locking.locked_at
+              ? this.firestore.timestampFromDate(
+                  new Date(dto.locking.locked_at),
+                )
+              : null,
+            lock_expires: dto.locking.lock_expires
+              ? this.firestore.timestampFromDate(
+                  new Date(dto.locking.lock_expires),
+                )
+              : null,
+          }
+        : {
+            locked_by: null,
+            locked_at: null,
+            lock_expires: null,
+          },
       audit: {
         created_ip: ipAddress,
         last_updated_by: userId,
@@ -248,19 +262,21 @@ export class NotesService {
 
     // Solo validar y sanitizar contenido si se proporciona en el PATCH
     let sanitizedContent: TipTapDocument | undefined;
-    let metrics: { word_count: number; reading_time_minutes: number } | undefined;
+    let metrics:
+      | { word_count: number; reading_time_minutes: number }
+      | undefined;
     let contentHash: string | undefined;
     let checksum: string | undefined;
 
     if (dto.content !== undefined) {
-      const validation = this.tipTap.validateSchema(dto.content as TipTapDocument);
+      const validation = this.tipTap.validateSchema(dto.content);
       if (!validation.isValid) {
         throw new BadRequestException(
           `Invalid TipTap content: ${validation.errors.join(', ')}`,
         );
       }
 
-      sanitizedContent = this.tipTap.sanitizeContent(dto.content as TipTapDocument);
+      sanitizedContent = this.tipTap.sanitizeContent(dto.content);
       metrics = this.tipTap.calculateMetrics(sanitizedContent);
       contentHash = this.tipTap.generateContentHash(sanitizedContent);
       checksum = this.tipTap.generateChecksum(sanitizedContent);
@@ -277,7 +293,12 @@ export class NotesService {
     };
 
     // Solo actualizar contenido si fue proporcionado
-    if (sanitizedContent !== undefined && metrics !== undefined && contentHash !== undefined && checksum !== undefined) {
+    if (
+      sanitizedContent !== undefined &&
+      metrics !== undefined &&
+      contentHash !== undefined &&
+      checksum !== undefined
+    ) {
       updates.content = sanitizedContent;
       updates.content_hash = contentHash;
       updates.checksum = checksum;
@@ -291,27 +312,37 @@ export class NotesService {
     if (dto.notebook_id) updates['notebook_id'] = dto.notebook_id;
     if (dto.style) updates['style'] = dto.style;
     if (dto.font) updates['font'] = dto.font;
-    if (dto.reminder_at) updates['reminder_at'] = this.firestore.timestampFromDate(new Date(dto.reminder_at));
+    if (dto.reminder_at)
+      updates['reminder_at'] = this.firestore.timestampFromDate(
+        new Date(dto.reminder_at),
+      );
     if (dto.sharing) {
-      const existingSharing = existing['sharing'] as Record<string, any> | undefined;
+      const existingSharing = existing['sharing'] as
+        | Record<string, any>
+        | undefined;
       updates['sharing'] = {
         public_slug: dto.sharing.public_slug ?? existingSharing?.public_slug,
-        public_access_expires: dto.sharing.public_access_expires 
-          ? this.firestore.timestampFromDate(new Date(dto.sharing.public_access_expires))
+        public_access_expires: dto.sharing.public_access_expires
+          ? this.firestore.timestampFromDate(
+              new Date(dto.sharing.public_access_expires),
+            )
           : existingSharing?.public_access_expires,
-        collaborators: dto.sharing.collaborators ?? existingSharing?.collaborators ?? [],
+        collaborators:
+          dto.sharing.collaborators ?? existingSharing?.collaborators ?? [],
       };
     }
     // C-4: locked_by siempre se fuerza al usuario actual - nunca permitir que el cliente forneje ownership
     if (dto.locking !== undefined) {
-      const existingLocking = existing['locking'] as Record<string, any> | undefined;
+      const existingLocking = existing['locking'] as
+        | Record<string, any>
+        | undefined;
       const nowTimestamp = this.firestore.serverTimestamp;
       updates['locking'] = {
         locked_by: userId, // Siempre forzar al usuario actual
-        locked_at: dto.locking.locked_at 
+        locked_at: dto.locking.locked_at
           ? this.firestore.timestampFromDate(new Date(dto.locking.locked_at))
           : (existingLocking?.locked_at ?? nowTimestamp),
-        lock_expires: dto.locking.lock_expires 
+        lock_expires: dto.locking.lock_expires
           ? this.firestore.timestampFromDate(new Date(dto.locking.lock_expires))
           : existingLocking?.lock_expires,
       };

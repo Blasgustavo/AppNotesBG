@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { AppError, ERROR_CODES, ERROR_MESSAGES } from '../errors/error-codes';
 
 interface ErrorResponse {
   statusCode: number;
@@ -14,7 +15,11 @@ interface ErrorResponse {
   error: string;
   timestamp: string;
   path: string;
+  code?: string;
+  details?: any;
 }
+
+const INTERNAL_ERROR_CODE = 'I9001';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -28,8 +33,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let status: number;
     let message: string | string[];
     let error: string;
+    let code: string | undefined;
+    let details: any | undefined;
 
-    if (exception instanceof HttpException) {
+    if (exception instanceof AppError) {
+      status = exception.statusCode;
+      message = exception.message;
+      error = exception.name;
+      code = exception.code;
+      details = exception.details;
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
@@ -45,10 +58,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
         error = exception.name;
       }
     } else {
-      // Error inesperado — no exponer detalles al cliente
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      message = 'Internal server error';
+      message =
+        ERROR_MESSAGES[INTERNAL_ERROR_CODE as keyof typeof ERROR_MESSAGES] ||
+        'Internal server error';
       error = 'InternalServerError';
+      code = INTERNAL_ERROR_CODE;
 
       this.logger.error(
         `Unhandled exception on ${request.method} ${request.url}`,
@@ -63,6 +78,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       path: request.url,
     };
+
+    if (code) {
+      body.code = code;
+    }
+    if (details) {
+      body.details = details;
+    }
 
     response.status(status).json(body);
   }

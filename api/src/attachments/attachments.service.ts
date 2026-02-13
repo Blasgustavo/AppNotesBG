@@ -73,7 +73,6 @@ export class AttachmentsService {
     let storageFileCreated = false;
 
     try {
-
       // Subir archivo a Storage
       const fileRef = this.storage.bucket().file(storagePath);
       await fileRef.save(file.buffer, {
@@ -178,7 +177,10 @@ export class AttachmentsService {
       const created = await attachmentRef.get();
       return created.data();
     } catch (error) {
-      this.logger.error(`Failed to upload attachment for user ${userId}:`, error);
+      this.logger.error(
+        `Failed to upload attachment for user ${userId}:`,
+        error,
+      );
 
       // Limpiar archivo de Storage solo si fue subido exitosamente
       // Usa storagePath correcto (fileName generado), no file.originalname
@@ -423,9 +425,7 @@ export class AttachmentsService {
     return createHash('sha256').update(buffer).digest('hex');
   }
 
-  private async generateThumbnail(
-    fileRef: any,
-  ): Promise<string | undefined> {
+  private async generateThumbnail(fileRef: any): Promise<string | undefined> {
     try {
       // Para una implementación completa, usaríamos image processing library
       // Por ahora, devolvemos undefined
@@ -487,18 +487,23 @@ export class AttachmentsService {
     try {
       const userRef = this.firestore.doc('users', userId);
       const increment = operation === 'add' ? fileSize : -fileSize;
-      
+
       await userRef.update({
         'quotas.storage_used_bytes': this.firestore.increment(increment),
-        'quotas.attachments_count': this.firestore.increment(operation === 'add' ? 1 : -1),
+        'quotas.attachments_count': this.firestore.increment(
+          operation === 'add' ? 1 : -1,
+        ),
         updated_at: this.firestore.serverTimestamp,
       });
-      
+
       this.logger.log(
         `User ${userId} storage quota ${operation === 'add' ? 'increased' : 'decreased'} by ${fileSize} bytes`,
       );
     } catch (error) {
-      this.logger.error(`Failed to update user storage quota for ${userId}:`, error);
+      this.logger.error(
+        `Failed to update user storage quota for ${userId}:`,
+        error,
+      );
       // No fallamos la operación si no se puede actualizar la cuota
     }
   }

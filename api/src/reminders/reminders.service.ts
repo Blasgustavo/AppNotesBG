@@ -34,7 +34,7 @@ export class RemindersService {
       .orderBy('reminder_at', 'asc')
       .get();
 
-    return snap.docs.map(doc => doc.data());
+    return snap.docs.map((doc) => doc.data());
   }
 
   /**
@@ -65,7 +65,9 @@ export class RemindersService {
   async findOneActive(reminderId: string, userId: string) {
     const data = await this.findOne(reminderId, userId);
 
-    const reminderAtTimestamp = data['reminder_at'] as FirebaseFirestore.Timestamp | undefined;
+    const reminderAtTimestamp = data['reminder_at'] as
+      | FirebaseFirestore.Timestamp
+      | undefined;
     const reminderAt = reminderAtTimestamp?.toDate();
     if (reminderAt && reminderAt < new Date()) {
       throw new BadRequestException('Reminder has already expired');
@@ -77,7 +79,12 @@ export class RemindersService {
   /**
    * Crea un nuevo recordatorio
    */
-  async create(userId: string, noteId: string, reminderData: any, ipAddress: string) {
+  async create(
+    userId: string,
+    noteId: string,
+    reminderData: any,
+    ipAddress: string,
+  ) {
     // Verificar límite de recordatorios
     const remindersSnap = await this.firestore
       .collection(REMINDERS_COL)
@@ -86,7 +93,9 @@ export class RemindersService {
 
     const remindersCount = remindersSnap.size;
     if (remindersCount >= MAX_REMINDERS_PER_USER) {
-      throw new BadRequestException(`Maximum ${MAX_REMINDERS_PER_USER} reminders per user allowed`);
+      throw new BadRequestException(
+        `Maximum ${MAX_REMINDERS_PER_USER} reminders per user allowed`,
+      );
     }
 
     // Verificar que la nota existe y pertenece al usuario
@@ -122,7 +131,9 @@ export class RemindersService {
       .get();
 
     if (!existingReminderSnap.empty) {
-      throw new ConflictException('A reminder already exists for this date and time');
+      throw new ConflictException(
+        'A reminder already exists for this date and time',
+      );
     }
 
     const nowTimestamp = this.firestore.serverTimestamp;
@@ -149,14 +160,22 @@ export class RemindersService {
       updated_at: nowTimestamp,
     };
 
-    const reminderRef = this.firestore.collection(REMINDERS_COL).doc(reminderDocument.id);
+    const reminderRef = this.firestore
+      .collection(REMINDERS_COL)
+      .doc(reminderDocument.id);
     await reminderRef.set(reminderDocument);
 
     // Configurar el Cloud Function para enviar notificación
-    await this.scheduleNotification(reminderDocument.id, reminderAt, reminderData.message);
+    await this.scheduleNotification(
+      reminderDocument.id,
+      reminderAt,
+      reminderData.message,
+    );
 
-    this.logger.log(`Reminder created: ${reminderDocument.id} for note: ${noteId} by user: ${userId}`);
-    
+    this.logger.log(
+      `Reminder created: ${reminderDocument.id} for note: ${noteId} by user: ${userId}`,
+    );
+
     const created = await reminderRef.get();
     return created.data();
   }
@@ -165,13 +184,20 @@ export class RemindersService {
    * Actualiza un recordatorio existente
    * Soporta actualizar recordatorios expirados (ej: reactivar con nueva fecha)
    */
-  async update(reminderId: string, userId: string, updateData: any, ipAddress: string) {
+  async update(
+    reminderId: string,
+    userId: string,
+    updateData: any,
+    ipAddress: string,
+  ) {
     // findOne verifica ownership y existencia — permite expirados para actualizaciones
     const existing = await this.findOne(reminderId, userId);
 
     // Si se está proporcionando una nueva fecha, debe ser futura
-    const existingReminderAt = (existing['reminder_at'] as FirebaseFirestore.Timestamp)?.toDate();
-    const nextReminderAt = updateData.reminder_at 
+    const existingReminderAt = (
+      existing['reminder_at'] as FirebaseFirestore.Timestamp
+    )?.toDate();
+    const nextReminderAt = updateData.reminder_at
       ? new Date(updateData.reminder_at)
       : existingReminderAt || new Date();
 
@@ -186,16 +212,23 @@ export class RemindersService {
       'audit.last_updated_ip': ipAddress,
     };
 
-    if (updateData.message !== undefined) updates['message'] = updateData.message.trim();
+    if (updateData.message !== undefined)
+      updates['message'] = updateData.message.trim();
     if (updateData.method !== undefined) updates['method'] = updateData.method;
-    if (updateData.repeat_type !== undefined) updates['repeat_type'] = updateData.repeat_type;
-    if (updateData.repeat_interval_days !== undefined) updates['repeat_interval_days'] = updateData.repeat_interval_days;
-    if (updateData.repeat_count !== undefined) updates['repeat_count'] = updateData.repeat_count;
+    if (updateData.repeat_type !== undefined)
+      updates['repeat_type'] = updateData.repeat_type;
+    if (updateData.repeat_interval_days !== undefined)
+      updates['repeat_interval_days'] = updateData.repeat_interval_days;
+    if (updateData.repeat_count !== undefined)
+      updates['repeat_count'] = updateData.repeat_count;
 
     // Si la fecha del recordatorio cambió, recalcular siguiente
     if (updateData.reminder_at !== undefined) {
       updates['reminder_at'] = this.firestore.timestampFromDate(nextReminderAt);
-      updates['next_reminder_at'] = this.calculateNextReminder(nextReminderAt, updateData);
+      updates['next_reminder_at'] = this.calculateNextReminder(
+        nextReminderAt,
+        updateData,
+      );
       // Solo resetear is_sent cuando cambia la fecha del recordatorio
       updates['is_sent'] = false;
     }
@@ -207,13 +240,19 @@ export class RemindersService {
     if (updateData.reminder_at !== undefined) {
       const updated = await this.firestore.getDoc(REMINDERS_COL, reminderId);
       const updatedData = updated.data() as Record<string, unknown>;
-      const reminderAtValue = updatedData['reminder_at'] as FirebaseFirestore.Timestamp;
-      await this.scheduleNotification(updated.id, reminderAtValue.toDate(), updateData.message as string);
+      const reminderAtValue = updatedData[
+        'reminder_at'
+      ] as FirebaseFirestore.Timestamp;
+      await this.scheduleNotification(
+        updated.id,
+        reminderAtValue.toDate(),
+        updateData.message as string,
+      );
     }
 
     const updated = await this.firestore.getDoc(REMINDERS_COL, reminderId);
     this.logger.log(`Reminder updated: ${reminderId} by user: ${userId}`);
-    
+
     return updated.data();
   }
 
@@ -225,7 +264,9 @@ export class RemindersService {
     const existing = await this.findOne(reminderId, userId);
 
     if (existing['is_sent'] && existing['repeat_type'] === 'once') {
-      throw new BadRequestException('Cannot delete a one-time reminder that has already been sent');
+      throw new BadRequestException(
+        'Cannot delete a one-time reminder that has already been sent',
+      );
     }
 
     // Cancelar notificación programada
@@ -241,9 +282,10 @@ export class RemindersService {
    */
   async markAsSent(reminderId: string, userId: string) {
     // Para marcar como enviado: verificar ownership pero permitir si ya expiró
-    const existing = userId === 'system'
-      ? await this.findOneBySystem(reminderId)
-      : await this.findOne(reminderId, userId);
+    const existing =
+      userId === 'system'
+        ? await this.findOneBySystem(reminderId)
+        : await this.findOne(reminderId, userId);
 
     if (existing['is_sent'] && existing['repeat_type'] === 'once') {
       throw new BadRequestException('Reminder is already marked as sent');
@@ -258,32 +300,44 @@ export class RemindersService {
     };
 
     // Si es recurrente, programar siguiente recordatorio
-    const nextReminderAtTimestamp = existing['next_reminder_at'] as FirebaseFirestore.Timestamp | undefined;
+    const nextReminderAtTimestamp = existing['next_reminder_at'] as
+      | FirebaseFirestore.Timestamp
+      | undefined;
     if (existing['repeat_type'] !== 'once' && nextReminderAtTimestamp) {
       const nextReminderDate = nextReminderAtTimestamp.toDate();
       updates['is_sent'] = false; // Reset para nuevo envío
       updates['next_reminder_at'] = this.calculateNextReminder(
         nextReminderDate,
-        existing
+        existing,
       );
-      const repeatCountCompleted = (existing['repeat_count_completed'] as number) || 0;
+      const repeatCountCompleted =
+        (existing['repeat_count_completed'] as number) || 0;
       updates['repeat_count_completed'] = repeatCountCompleted + 1;
-      updates['reminder_at'] = this.firestore.timestampFromDate(nextReminderDate);
+      updates['reminder_at'] =
+        this.firestore.timestampFromDate(nextReminderDate);
 
       // Programar siguiente notificación
-      await this.scheduleNotification(reminderId, nextReminderDate, existing['message'] as string);
+      await this.scheduleNotification(
+        reminderId,
+        nextReminderDate,
+        existing['message'] as string,
+      );
     }
 
     await this.firestore.doc(REMINDERS_COL, reminderId).update(updates);
 
-    this.logger.log(`Reminder marked as sent: ${reminderId} by user: ${userId}`);
+    this.logger.log(
+      `Reminder marked as sent: ${reminderId} by user: ${userId}`,
+    );
   }
 
   /**
    * Obtiene un recordatorio sin verificar ownership (uso interno/sistema únicamente)
    * NO usar desde endpoints de usuario — solo para Cloud Functions y tareas programadas
    */
-  private async findOneBySystem(reminderId: string): Promise<Record<string, unknown>> {
+  private async findOneBySystem(
+    reminderId: string,
+  ): Promise<Record<string, unknown>> {
     const snap = await this.firestore.getDoc(REMINDERS_COL, reminderId);
     if (!snap.exists) {
       throw new NotFoundException(`Reminder ${reminderId} not found`);
@@ -305,7 +359,7 @@ export class RemindersService {
       .limit(20)
       .get();
 
-    return snap.docs.map(doc => ({
+    return snap.docs.map((doc) => ({
       ...doc.data(),
       id: doc.id,
     }));
@@ -326,7 +380,7 @@ export class RemindersService {
       .limit(50)
       .get();
 
-    return snap.docs.map(doc => ({
+    return snap.docs.map((doc) => ({
       ...doc.data(),
       id: doc.id,
     }));
@@ -347,7 +401,7 @@ export class RemindersService {
       .limit(100)
       .get();
 
-    return snap.docs.map(doc => ({
+    return snap.docs.map((doc) => ({
       ...doc.data(),
       id: doc.id,
     }));
@@ -356,13 +410,20 @@ export class RemindersService {
   /**
    * Programar notificación push via FCM
    */
-  private async scheduleNotification(reminderId: string, reminderAt: Date, message: string) {
+  private async scheduleNotification(
+    reminderId: string,
+    reminderAt: Date,
+    message: string,
+  ) {
     try {
       // Obtener la nota asociada para obtener información del usuario
-      const reminderSnap = await this.firestore.getDoc(REMINDERS_COL, reminderId);
+      const reminderSnap = await this.firestore.getDoc(
+        REMINDERS_COL,
+        reminderId,
+      );
       const reminderData = reminderSnap.data() as Record<string, unknown>;
       const noteId = reminderData['note_id'] as string;
-      
+
       const noteSnap = await this.firestore.getDoc('notes', noteId);
       if (noteSnap.exists) {
         const noteData = noteSnap.data() as Record<string, unknown>;
@@ -389,11 +450,16 @@ export class RemindersService {
           };
 
           await this.firebaseApp.messaging().send(messagePayload);
-          this.logger.log(`FCM notification scheduled: ${reminderId} for user: ${user}`);
+          this.logger.log(
+            `FCM notification scheduled: ${reminderId} for user: ${user}`,
+          );
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to schedule FCM notification for reminder ${reminderId}:`, error);
+      this.logger.error(
+        `Failed to schedule FCM notification for reminder ${reminderId}:`,
+        error,
+      );
     }
   }
 
@@ -402,10 +468,13 @@ export class RemindersService {
    */
   private async cancelNotification(reminderId: string) {
     try {
-      const reminderSnap = await this.firestore.getDoc(REMINDERS_COL, reminderId);
+      const reminderSnap = await this.firestore.getDoc(
+        REMINDERS_COL,
+        reminderId,
+      );
       const reminderData = reminderSnap.data() as Record<string, unknown>;
       const noteId = reminderData['note_id'] as string;
-      
+
       const noteSnap = await this.firestore.getDoc('notes', noteId);
       if (noteSnap.exists) {
         const noteData = noteSnap.data() as Record<string, unknown>;
@@ -426,18 +495,26 @@ export class RemindersService {
           };
 
           await this.firebaseApp.messaging().send(messagePayload);
-          this.logger.log(`FCM notification cancelled: ${reminderId} for user: ${user}`);
+          this.logger.log(
+            `FCM notification cancelled: ${reminderId} for user: ${user}`,
+          );
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to cancel FCM notification for reminder ${reminderId}:`, error);
+      this.logger.error(
+        `Failed to cancel FCM notification for reminder ${reminderId}:`,
+        error,
+      );
     }
   }
 
   /**
    * Calcula la fecha del siguiente recordatorio recurrente
    */
-  private calculateNextReminder(currentReminderAt: Date, reminderData: any): Date | null {
+  private calculateNextReminder(
+    currentReminderAt: Date,
+    reminderData: any,
+  ): Date | null {
     const { repeat_type, repeat_interval_days, repeat_count } = reminderData;
 
     if (repeat_type === 'once') {
@@ -445,7 +522,7 @@ export class RemindersService {
     }
 
     const next = new Date(currentReminderAt);
-    
+
     switch (repeat_type) {
       case 'daily':
         next.setDate(next.getDate() + 1);
@@ -476,10 +553,10 @@ export class RemindersService {
    */
   async processExpiredReminders() {
     const pendingReminders = await this.findPendingNotifications();
-    
+
     for (const reminder of pendingReminders) {
       this.logger.log(`Processing expired reminder: ${reminder.id}`);
-      
+
       // Marcar como expirado
       await this.firestore.doc(REMINDERS_COL, reminder.id).update({
         is_expired: true,
@@ -492,11 +569,14 @@ export class RemindersService {
       const reminderData = reminder as Record<string, any>;
       if (reminderData['note_id']) {
         try {
-          const noteSnap = await this.firestore.getDoc('notes', reminderData['note_id'] as string);
+          const noteSnap = await this.firestore.getDoc(
+            'notes',
+            reminderData['note_id'] as string,
+          );
           if (noteSnap.exists) {
             const noteData = noteSnap.data() as Record<string, unknown>;
             const user = noteData['user_id'] as string;
-            
+
             const userSnap = await this.firestore.doc('users', user).get();
             const userData = userSnap.data() as Record<string, unknown>;
             const fcmToken = userData['fcm_token'] as string;
@@ -528,23 +608,30 @@ export class RemindersService {
    */
   async processPendingReminders() {
     const pending = await this.findPendingNotifications();
-    
+
     for (const reminder of pending) {
       const reminderData = reminder as Record<string, any>;
       const reminderAt = reminderData['reminder_at']?.toDate();
       if (reminderAt && reminderAt <= new Date()) {
         this.logger.log(`Processing reminder: ${reminderData['id']}`);
-        
+
         try {
           // Enviar notificación push
-          await this.scheduleNotification(reminderData['id'], reminderAt, reminderData['message']);
-          
+          await this.scheduleNotification(
+            reminderData['id'],
+            reminderAt,
+            reminderData['message'],
+          );
+
           // Marcar como enviado
           await this.markAsSent(reminderData['id'], 'system');
-          
+
           this.logger.log(`Reminder processed: ${reminderData['id']}`);
         } catch (error) {
-          this.logger.error(`Failed to process reminder ${reminderData['id']}:`, error);
+          this.logger.error(
+            `Failed to process reminder ${reminderData['id']}:`,
+            error,
+          );
         }
       }
     }
@@ -554,7 +641,9 @@ export class RemindersService {
    * Actualiza preferencias de notificación del usuario (stub)
    */
   async updatePreferences(userId: string, preferences: any): Promise<void> {
-    this.logger.log(`Updating preferences for user ${userId}: ${JSON.stringify(preferences)}`);
+    this.logger.log(
+      `Updating preferences for user ${userId}: ${JSON.stringify(preferences)}`,
+    );
     // TODO: Implementar actualización de preferencias
   }
 

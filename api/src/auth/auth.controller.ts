@@ -1,4 +1,12 @@
-import { Controller, Post, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Req,
+  Body,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -8,6 +16,7 @@ import {
 import { AuthService } from './auth.service';
 import { getClientIp, getUserAgent } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
+import { RefreshTokenDto, RevokeSessionDto } from './dto/auth.dto';
 
 @ApiTags('auth')
 @ApiBearerAuth()
@@ -37,5 +46,78 @@ export class AuthController {
       getClientIp(req),
       getUserAgent(req),
     );
+  }
+
+  /**
+   * POST /api/v1/auth/refresh
+   * Refresca el token de sesión y rota el refresh token.
+   * Requiere un refresh token válido.
+   */
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Refrescar token de sesión con rotación',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nuevo token de acceso generado',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Refresh token inválido o expirado',
+  })
+  async refresh(
+    @Body() dto: RefreshTokenDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.authService.refreshSession(
+      req.user,
+      dto.refresh_token,
+      getClientIp(req),
+      getUserAgent(req),
+    );
+  }
+
+  /**
+   * POST /api/v1/auth/revoke
+   * Invalida una sesión específica o todas las sesiones del usuario.
+   */
+  @Post('revoke')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Revocar sesión(es) del usuario',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Sesión(es) revocada(s) correctamente',
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido' })
+  async revoke(
+    @Body() dto: RevokeSessionDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.authService.revokeSession(
+      req.user.uid,
+      dto.session_id,
+      getClientIp(req),
+    );
+  }
+
+  /**
+   * GET /api/v1/auth/sessions
+   * Lista las sesiones activas del usuario.
+   */
+  @Get('sessions')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Listar sesiones activas del usuario',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de sesiones activas',
+  })
+  @ApiResponse({ status: 401, description: 'Token inválido' })
+  async sessions(@Req() req: AuthenticatedRequest) {
+    return this.authService.getActiveSessions(req.user.uid);
   }
 }

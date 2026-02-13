@@ -11,6 +11,8 @@ import {
   Max,
   Length,
   Matches,
+  MaxLength,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/swagger';
@@ -70,6 +72,9 @@ export class AttachmentDto {
 
 export class CollaboratorDto {
   @IsString()
+  @Matches(/^[a-zA-Z0-9_-]{20,}$/, {
+    message: 'User ID must be a valid Firebase UID',
+  })
   user_id!: string;
 
   @IsEnum(['view', 'edit', 'comment'])
@@ -97,6 +102,7 @@ export class SharingDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50, { message: 'Maximum 50 collaborators allowed' })
   @ValidateNested({ each: true })
   @Type(() => CollaboratorDto)
   collaborators?: CollaboratorDto[];
@@ -120,6 +126,7 @@ export class CreateNoteDto {
   @IsString()
   @Length(1, 200, { message: 'Title must be between 1 and 200 characters' })
   @Matches(/^[^<>]*$/, { message: 'Title cannot contain HTML tags' })
+  @MaxLength(200)
   title!: string;
 
   @IsObject()
@@ -132,7 +139,12 @@ export class CreateNoteDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20, { message: 'Maximum 20 tags allowed' })
   @IsString({ each: true })
+  @MaxLength(50, {
+    each: true,
+    message: 'Each tag must be 50 characters or less',
+  })
   tags?: string[];
 
   @IsOptional()
@@ -218,10 +230,12 @@ export class UpdateNoteDto extends PartialType(CreateNoteDto) {
 export class QueryNotesDto {
   @IsOptional()
   @IsString()
+  @Matches(/^[a-zA-Z0-9_-]+$/, { message: 'Invalid notebook ID format' })
   notebook_id?: string;
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
   tags?: string[];
 

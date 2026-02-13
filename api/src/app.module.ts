@@ -1,14 +1,16 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FirebaseAdminModule, FirebaseAuthGuard } from './core/firebase';
+import { ThrottlerGuardByUser } from './core/firebase/throttler-guard-by-user';
 import { FirestoreModule } from './core/firestore';
 import { TipTapModule } from './core/tiptap';
+import { EncryptionModule } from './core/encryption/encryption.module';
 import { AuthModule } from './auth/auth.module';
 import { NotebooksModule } from './notebooks/notebooks.module';
 import { NotesModule } from './notes/notes.module';
@@ -17,6 +19,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
 import { ThemesModule } from './themes/themes.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { AuditModule } from './audit/audit.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -29,19 +32,21 @@ import { AuditModule } from './audit/audit.module';
     // Logger estructurado con Winston — reemplaza console.log/error en producción
     WinstonModule.forRoot({
       level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-      format: process.env.NODE_ENV === 'production'
-        ? winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.errors({ stack: true }),
-            winston.format.json(), // JSON estructurado para Cloud Logging / Datadog
-          )
-        : winston.format.combine(
-            winston.format.colorize(),
-            winston.format.timestamp({ format: 'HH:mm:ss' }),
-            winston.format.printf(({ level, message, timestamp, context, stack }) =>
-              `${timestamp} [${context ?? 'App'}] ${level}: ${message}${stack ? '\n' + stack : ''}`,
+      format:
+        process.env.NODE_ENV === 'production'
+          ? winston.format.combine(
+              winston.format.timestamp(),
+              winston.format.errors({ stack: true }),
+              winston.format.json(), // JSON estructurado para Cloud Logging / Datadog
+            )
+          : winston.format.combine(
+              winston.format.colorize(),
+              winston.format.timestamp({ format: 'HH:mm:ss' }),
+              winston.format.printf(
+                ({ level, message, timestamp, context, stack }) =>
+                  `${timestamp} [${context ?? 'App'}] ${level}: ${message}${stack ? '\n' + stack : ''}`,
+              ),
             ),
-          ),
       transports: [
         new winston.transports.Console(),
         // En producción agregar: new winston.transports.File({ filename: 'error.log', level: 'error' })
@@ -57,6 +62,9 @@ import { AuditModule } from './audit/audit.module';
     // TipTap — procesamiento y validación de contenido
     TipTapModule,
 
+    // Encryption — cifrado AES-256 para datos sensibles
+    EncryptionModule,
+
     // Módulos de dominio
     AuthModule,
     NotebooksModule,
@@ -66,11 +74,24 @@ import { AuditModule } from './audit/audit.module';
     ThemesModule,
     RemindersModule,
     AuditModule,
+    AIModule,
 
+    // Throttling: IP-based + User-based
     ThrottlerModule.forRoot([
       {
+        name: 'short',
+        ttl: 1000, // 1 segundo
+        limit: 10, // 10 peticiones por segundo por IP
+      },
+      {
+        name: 'medium',
         ttl: 60000, // 60 segundos
         limit: 100, // 100 peticiones por minuto por IP
+      },
+      {
+        name: 'user',
+        ttl: 60000, // 60 segundos
+        limit: 200, // 200 peticiones por minuto por usuario autenticado
       },
     ]),
   ],
@@ -78,7 +99,7 @@ import { AuditModule } from './audit/audit.module';
   providers: [
     AppService,
     // ThrottlerGuard primero — rate limiting antes de autenticación
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuardByUser },
     // FirebaseAuthGuard global — protege todos los endpoints
     // Usar @Public() para marcar rutas que no requieren auth
     { provide: APP_GUARD, useClass: FirebaseAuthGuard },

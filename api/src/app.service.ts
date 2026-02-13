@@ -45,12 +45,15 @@ export class AppService {
     try {
       const firestore = admin.firestore();
       // Simple connectivity check - listCollections is lightweight
-      await firestore.listCollections().then(cols => {
-        services.firestore.status = 'up';
-        services.firestore.latency_ms = Date.now() - firestoreStart;
-      }).catch(() => {
-        services.firestore.status = 'down';
-      });
+      await firestore
+        .listCollections()
+        .then((cols) => {
+          services.firestore.status = 'up';
+          services.firestore.latency_ms = Date.now() - firestoreStart;
+        })
+        .catch(() => {
+          services.firestore.status = 'down';
+        });
     } catch (error: any) {
       services.firestore.status = 'down';
       services.firestore.error = error.message;
@@ -59,7 +62,10 @@ export class AppService {
 
     // Determine overall status
     let status: HealthStatus['status'] = 'healthy';
-    if (services.firestore.status === 'down' || services.firebaseAdmin.status === 'down') {
+    if (
+      services.firestore.status === 'down' ||
+      services.firebaseAdmin.status === 'down'
+    ) {
       status = 'unhealthy';
     } else if (
       (services.firestore.latency_ms && services.firestore.latency_ms > 1000) ||

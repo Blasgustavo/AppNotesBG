@@ -31,12 +31,12 @@ export function getClientIp(req: Request): string {
   // En desarrollo trust proxy está apagado, así que usa socket.remoteAddress
   // En producción con trust proxy = 1, req.ip contiene la IP real del cliente
   const ip = req.ip ?? (req as any).socket?.remoteAddress ?? 'unknown';
-  
+
   // Limpiar IPv6 mapped IPv4 ::ffff:192.168.1.1 -> 192.168.1.1
   if (ip.startsWith('::ffff:')) {
     return ip.substring(7);
   }
-  
+
   return ip;
 }
 

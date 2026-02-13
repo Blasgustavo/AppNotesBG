@@ -46,9 +46,12 @@ export class CreateReminderDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(?:\d{4})-(?:\d{2})-(?:\d{2})T(?:\d{2}:\d{2}:?\d{2})(?:[+-]\d{2}:?\d{2})$/, {
-    message: 'Invalid time format. Expected HH:mm or HH:mm:ss',
-  })
+  @Matches(
+    /^(?:\d{4})-(?:\d{2})-(?:\d{2})T(?:\d{2}:\d{2}:?\d{2})(?:[+-]\d{2}:?\d{2})$/,
+    {
+      message: 'Invalid time format. Expected HH:mm or HH:mm:ss',
+    },
+  )
   reminder_at!: string;
 }
 
@@ -81,9 +84,12 @@ export class UpdateReminderDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(?:\d{4})-(?:\d{2})-(?:\d{2})T(?:\d{2}:\d{2}:?\d{2})(?:[+-]\d{2}:?\d{2})?$/, {
-    message: 'Invalid time format. Expected ISO 8601 datetime',
-  })
+  @Matches(
+    /^(?:\d{4})-(?:\d{2})-(?:\d{2})T(?:\d{2}:\d{2}:?\d{2})(?:[+-]\d{2}:?\d{2})?$/,
+    {
+      message: 'Invalid time format. Expected ISO 8601 datetime',
+    },
+  )
   reminder_at?: string;
 }
 
@@ -118,7 +124,9 @@ export class QueryRemindersDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(?:past|upcoming|today|custom)$/, { message: 'Invalid time filter' })
+  @Matches(/^(?:past|upcoming|today|custom)$/, {
+    message: 'Invalid time filter',
+  })
   time_filter?: 'past' | 'upcoming' | 'today' | 'custom';
 
   @IsOptional()
@@ -175,7 +183,9 @@ export class NotificationPreferencesDto {
 
   @IsOptional()
   @IsString()
-  @Length(10, 100, { message: 'Sound identifier must be between 10 and 100 characters' })
+  @Length(10, 100, {
+    message: 'Sound identifier must be between 10 and 100 characters',
+  })
   notification_sound?: string;
 
   @IsOptional()

@@ -45,6 +45,159 @@ service cloud.firestore {
           ]);
     }
 
+    // ─── users ─────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      // El usuario solo puede leer/actualizar su propio perfil.
+      // Toda escritura (onboarding, actualización de preferencias)
+      // pasa por NestJS (Admin SDK), que bypasea estas reglas.
+      allow read, write: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && resource.data.status in ['active', 'suspended', 'deleted']
+        && 'preferences' in resource.data
+        && 'security' in resource.data
+        && 'quotas' in resource.data
+        && 'audit' in resource.data;
+    }
+
+    // ─── notebooks ─────────────────────────────────────────────────────
+
+    match /notebooks/{notebookId} {
+      // El cliente puede escuchar libretas en tiempo real.
+      // Toda escritura va por NestJS.
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── notes ─────────────────────────────────────────────────────
+
+    match /notes/{noteId} {
+      // El cliente puede escuchar sus notas en tiempo real.
+      // Los colaboradores con permiso 'view'/'comment' pueden leer.
+      // Los colaboradores con permiso 'edit' pueden leer/actualizar.
+      // Toda escritura (creación, actualización) va por NestJS.
+      allow read: if isAuthenticated() && (
+        resource.data.user_id == request.auth.uid
+        || matchCollaborator(resource.data)
+      );
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated()
+        && (
+          resource.data.user_id == request.auth.uid
+          || matchCollaborator(resource.data)
+        );
+      allow delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── note_history ─────────────────────────────────────────────────────
+
+    match /note_history/{historyId} {
+      // Solo el propietario puede leer el historial.
+      // Inmutable: ni el cliente ni NestJS actualizan/eliminan
+      // (salvo el pruneHistory que es via Admin SDK).
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if false; // Solo Admin SDK
+    }
+
+    // ─── themes ─────────────────────────────────────────────────────
+
+    match /themes/{themeId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── attachments ─────────────────────────────────────────────────────
+
+    match /attachments/{attachmentId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── invitations ─────────────────────────────────────────────────────
+
+    match /invitations/{invitationId} {
+      // El invitado y el creador pueden leer la invitación.
+      // El creador puede crear/revocar. El invitado puede aceptar/rechazar.
+      allow read: if matchInvitation(resource.data);
+      allow create: if isAuthenticated()
+        && resource.data.invited_by_uid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        (resource.data.invited_by_uid == request.auth.uid && resource.data.status in ['revoked'])
+        || (
+          resource.data.invited_email == request.auth.token.email
+          && resource.data.status in ['accepted', 'rejected']
+        )
+      );
+      allow delete: if isAuthenticated()
+        && resource.data.invited_by_uid == request.auth.uid;
+    }
+
+    // ─── audit_logs ─────────────────────────────────────────────────────
+    // TTL: Los logs de auditoría se eliminan automáticamente después de 365 días
+    // Esto se configura en Firebase Console > Firestore > TTL
+
+    match /audit_logs/{logId} {
+      // Completamente inaccesible desde el cliente.
+      // Solo accesible desde Cloud Functions o Admin SDK.
+      allow read, write: if false;
+    }
+
+    // ─── sessions ─────────────────────────────────────────────────────
+    // Solo el usuario puede ver sus propias sesiones
+
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── Catch-all: bloquear cualquier otra colección ─────────────────────
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Definir explícitamente las variables que se usan en los matches
+    function matchInvitation(invitation) {
+      return isAuthenticated() && (
+        invitation.invited_by_uid == request.auth.uid
+        || invitation.invited_email == request.auth.token.email
+      );
+    }
+
+    function matchCollaborator(note) {
+      return isAuthenticated()
+        && 'sharing' in note
+        && 'collaborators' in note.sharing
+        && note.sharing.collaborators.hasAny([
+            { user_id: request.auth.uid, permission: 'view' },
+            { user_id: request.auth.uid, permission: 'edit' },
+            { user_id: request.auth.uid, permission: 'comment' },
+          ]);
+    }
+
     // ─── users ─────────────────────────────────────────────────────────────
 
     match /users/{userId} {

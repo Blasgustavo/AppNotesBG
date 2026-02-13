@@ -25,9 +25,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // ─── CORS ─────────────────────────────────────────────────────────────────
-  const corsOrigin = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()) || [
-    'http://localhost:4200',
-  ];
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',').map((o) =>
+    o.trim(),
+  ) || ['http://localhost:4200'];
   app.enableCors({
     origin: corsOrigin,
     credentials: true,
@@ -63,6 +63,8 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  logger.log(`Application running on port ${port} [${isProduction ? 'production' : 'development'}]`);
+  logger.log(
+    `Application running on port ${port} [${isProduction ? 'production' : 'development'}]`,
+  );
 }
 void bootstrap();

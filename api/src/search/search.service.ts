@@ -184,7 +184,9 @@ export class SearchService {
 
       if (tags && tags.length > 0) {
         // OR entre tags (el usuario puede filtrar por cualquiera de los tags)
-        const tagFilters = tags.map((tag) => `tags:${tag.replace(/[":]/g, '')}`);
+        const tagFilters = tags.map(
+          (tag) => `tags:${tag.replace(/[":]/g, '')}`,
+        );
         facetFilters.push(tagFilters);
       }
 
@@ -202,16 +204,18 @@ export class SearchService {
 
       // Simplified search without complex Algolia typing
       const result = await (this.client as any).search({
-        requests: [{
-          indexName: this.indexName,
-          query,
-          facetFilters,
-          ...(numericFilters.length > 0 ? { numericFilters } : {}),
-          hitsPerPage: Math.min(limit, 100),
-          offset: Math.min(offset, 1000),
-        }]
+        requests: [
+          {
+            indexName: this.indexName,
+            query,
+            facetFilters,
+            ...(numericFilters.length > 0 ? { numericFilters } : {}),
+            hitsPerPage: Math.min(limit, 100),
+            offset: Math.min(offset, 1000),
+          },
+        ],
       });
-      
+
       const firstResult = result.results?.[0] || {};
 
       this.logger.log(
@@ -244,19 +248,23 @@ export class SearchService {
       if (query.length < 2) return [];
 
       const result = await (this.client as any).search({
-        requests: [{
-          indexName: this.indexName,
-          query,
-          hitsPerPage: limit,
-          facetFilters: [[`user_id:${userId}`]], // Array para evitar inyección
-          attributesToRetrieve: ['title'],
-        }]
+        requests: [
+          {
+            indexName: this.indexName,
+            query,
+            hitsPerPage: limit,
+            facetFilters: [[`user_id:${userId}`]], // Array para evitar inyección
+            attributesToRetrieve: ['title'],
+          },
+        ],
       });
 
       const firstResult = result.results?.[0] || {};
       const suggestions = (firstResult.hits || [])
         .map((hit: any) => hit.title)
-        .filter((title: string) => title.toLowerCase().includes(query.toLowerCase()))
+        .filter((title: string) =>
+          title.toLowerCase().includes(query.toLowerCase()),
+        )
         .slice(0, limit);
 
       return suggestions;
@@ -328,12 +336,14 @@ export class SearchService {
   async getUserIndexStats(userId: string): Promise<{ indexed_notes: number }> {
     try {
       const result = await (this.client as any).search({
-        requests: [{
-          indexName: this.indexName,
-          query: '',
-          filters: `user_id:${userId}`,
-          hitsPerPage: 0, // No necesitamos hits, solo el count
-        }]
+        requests: [
+          {
+            indexName: this.indexName,
+            query: '',
+            filters: `user_id:${userId}`,
+            hitsPerPage: 0, // No necesitamos hits, solo el count
+          },
+        ],
       });
 
       const firstResult = result.results?.[0] || {};

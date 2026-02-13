@@ -12,10 +12,10 @@ import type { CreateNotebookDto, UpdateNotebookDto } from './dto/notebook.dto';
 export class NotebooksService {
   private readonly logger = new Logger(NotebooksService.name);
   private readonly COL = 'notebooks';
+  private readonly NOTES_COL = 'notes';
 
   constructor(private readonly firestore: FirestoreService) {}
 
-  /** Lista todas las libretas del usuario ordenadas por sort_order */
   async findAll(userId: string): Promise<FirebaseFirestore.DocumentData[]> {
     const snap = await this.firestore
       .collection(this.COL)
@@ -26,7 +26,6 @@ export class NotebooksService {
     return snap.docs.map((d) => d.data());
   }
 
-  /** Obtiene una libreta por ID, verificando que pertenece al usuario */
   async findOne(
     notebookId: string,
     userId: string,
@@ -45,7 +44,6 @@ export class NotebooksService {
     return data;
   }
 
-  /** Crea una nueva libreta */
   async create(
     userId: string,
     dto: CreateNotebookDto,
@@ -83,12 +81,10 @@ export class NotebooksService {
     await ref.set(notebook);
     this.logger.log(`Libreta creada: ${ref.id} para usuario: ${userId}`);
 
-    // Devolver el doc recién creado
     const created = await ref.get();
     return created.data()!;
   }
 
-  /** Actualiza nombre, icono, color, favorito o sort_order */
   async update(
     notebookId: string,
     userId: string,
@@ -97,7 +93,6 @@ export class NotebooksService {
   ): Promise<FirebaseFirestore.DocumentData> {
     const existing = await this.findOne(notebookId, userId);
 
-    // No se puede renombrar la libreta por defecto
     if (existing['is_default'] && dto.name && dto.name !== existing['name']) {
       throw new BadRequestException(
         'No se puede renombrar la libreta por defecto',
@@ -122,7 +117,6 @@ export class NotebooksService {
     return updated.data()!;
   }
 
-  /** Elimina una libreta (solo si no tiene notas y no es la por defecto) */
   async remove(notebookId: string, userId: string): Promise<void> {
     const existing = await this.findOne(notebookId, userId);
 
@@ -132,9 +126,31 @@ export class NotebooksService {
       );
     }
 
-    if (existing['note_count'] > 0) {
+    const activeNotesSnap = await this.firestore
+      .collection(this.NOTES_COL)
+      .where('notebook_id', '==', notebookId)
+      .where('user_id', '==', userId)
+      .where('deleted_at', '==', null)
+      .limit(1)
+      .get();
+
+    if (!activeNotesSnap.empty) {
       throw new BadRequestException(
         'No se puede eliminar una libreta con notas. Mueve o elimina las notas primero.',
+      );
+    }
+
+    const archivedNotesSnap = await this.firestore
+      .collection(this.NOTES_COL)
+      .where('notebook_id', '==', notebookId)
+      .where('user_id', '==', userId)
+      .where('archived_at', '!=', null)
+      .limit(1)
+      .get();
+
+    if (!archivedNotesSnap.empty) {
+      throw new BadRequestException(
+        'No se puede eliminar una libreta con notas archivadas. Mueve o elimina las notas archivadas primero.',
       );
     }
 

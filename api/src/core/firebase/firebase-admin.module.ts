@@ -29,7 +29,7 @@ export const FIREBASE_ADMIN = 'FIREBASE_ADMIN';
         if (!projectId || !clientEmail || !privateKey) {
           logger.error(
             'Firebase Admin SDK credentials missing. ' +
-            'Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in .env',
+              'Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in .env',
           );
           throw new Error('Firebase Admin SDK credentials not configured');
         }

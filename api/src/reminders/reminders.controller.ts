@@ -40,16 +40,22 @@ export class RemindersController {
 
   /** GET /api/v1/reminders — lista de recordatorios del usuario */
   @Get()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Listar recordatorios',
-    description: 'Obtiene todos los recordatorios del usuario con filtros'
+    description: 'Obtiene todos los recordatorios del usuario con filtros',
   })
   @ApiQuery({ name: 'status', enum: ['pending', 'sent', 'expired'] })
   @ApiQuery({ name: 'note_id', required: false })
   @ApiQuery({ name: 'include_completed', required: false })
   @ApiQuery({ name: 'only_expired', required: false })
-  @ApiQuery({ name: 'time_filter', enum: ['past', 'upcoming', 'today', 'custom'] })
-  @ApiQuery({ name: 'sort_order', enum: ['reminder_at', 'created_at', 'message', 'updated_at'] })
+  @ApiQuery({
+    name: 'time_filter',
+    enum: ['past', 'upcoming', 'today', 'custom'],
+  })
+  @ApiQuery({
+    name: 'sort_order',
+    enum: ['reminder_at', 'created_at', 'message', 'updated_at'],
+  })
   @ApiQuery({ name: 'sort_direction', enum: ['asc', 'desc'] })
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'cursor', required: false })
@@ -64,46 +70,54 @@ export class RemindersController {
 
   /** GET /api/v1/reminders/:id — obtener recordatorio específico */
   @Get(':id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener recordatorio específico',
-    description: 'Retorna los detalles de un recordatorio'
+    description: 'Retorna los detalles de un recordatorio',
   })
   @ApiParam({ name: 'id', description: 'ID del recordatorio' })
   @ApiResponse({ status: 200, description: 'Detalles del recordatorio' })
   @ApiResponse({ status: 404, description: 'Recordatorio no encontrado' })
   @ApiResponse({ status: 403, description: 'Acceso denegado' })
-  async findOne(
-    @Param('id') id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  async findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.remindersService.findOne(id, req.user.uid);
   }
 
   /** POST /api/v1/reminders — crear nuevo recordatorio */
   @Post()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Crear un nuevo recordatorio',
-    description: 'Crea un nuevo recordatorio para una nota'
+    description: 'Crea un nuevo recordatorio para una nota',
   })
   @ApiResponse({ status: 201, description: 'Recordatorio creado exitosamente' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos o límite excedido' })
+  @ApiResponse({
+    status: 400,
+    description: 'Datos inválidos o límite excedido',
+  })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   @ApiResponse({ status: 404, description: 'Nota no encontrada' })
   async create(
     @Body() dto: CreateReminderDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.remindersService.create(req.user.uid, dto.note_id, dto, getClientIp(req));
+    return this.remindersService.create(
+      req.user.uid,
+      dto.note_id,
+      dto,
+      getClientIp(req),
+    );
   }
 
   /** PATCH /api/v1/reminders/:id — actualizar recordatorio */
   @Patch(':id')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Actualizar un recordatorio existente',
-    description: 'Modifica un recordatorio existente'
+    description: 'Modifica un recordatorio existente',
   })
   @ApiParam({ name: 'id', description: 'ID del recordatorio' })
-  @ApiResponse({ status: 200, description: 'Recordatorio actualizado exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recordatorio actualizado exitosamente',
+  })
   @ApiResponse({ status: 404, description: 'Recordatorio no encontrado' })
   @ApiResponse({ status: 403, description: 'Acceso denegado' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
@@ -112,21 +126,32 @@ export class RemindersController {
     @Body() dto: UpdateReminderDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.remindersService.update(id, req.user.uid, dto, getClientIp(req));
+    return this.remindersService.update(
+      id,
+      req.user.uid,
+      dto,
+      getClientIp(req),
+    );
   }
 
   /** DELETE /api/v1/reminders/:id — eliminar recordatorio */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Eliminar un recordatorio',
-    description: 'Elimina permanentemente un recordatorio'
+    description: 'Elimina permanentemente un recordatorio',
   })
   @ApiParam({ name: 'id', description: 'ID del recordatorio' })
-  @ApiResponse({ status: 204, description: 'Recordatorio eliminado exitosamente' })
+  @ApiResponse({
+    status: 204,
+    description: 'Recordatorio eliminado exitosamente',
+  })
   @ApiResponse({ status: 404, description: 'Recordatorio no encontrado' })
   @ApiResponse({ status: 403, description: 'Acceso denegado' })
-  @ApiResponse({ status: 400, description: 'No se puede eliminar un recordatorio ya enviado' })
+  @ApiResponse({
+    status: 400,
+    description: 'No se puede eliminar un recordatorio ya enviado',
+  })
   async remove(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
@@ -136,12 +161,16 @@ export class RemindersController {
 
   /** POST /api/v1/reminders/:id/mark-sent — marcar como enviado */
   @Post(':id/mark-sent')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Marcar recordatorio como enviado',
-    description: 'Marca un recordatorio como enviado y programa el siguiente si es recurrente'
+    description:
+      'Marca un recordatorio como enviado y programa el siguiente si es recurrente',
   })
   @ApiParam({ name: 'id', description: 'ID del recordatorio' })
-  @ApiResponse({ status: 200, description: 'Recordatorio marcado como enviado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recordatorio marcado como enviado',
+  })
   @ApiResponse({ status: 404, description: 'Recordatorio no encontrado' })
   @ApiResponse({ status: 403, description: 'Acceso denegado' })
   async markAsSent(
@@ -155,11 +184,15 @@ export class RemindersController {
 
   /** GET /api/v1/reminders/by-status — listar por estado (pending/sent/expired) */
   @Get('by-status')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener mis recordatorios expirados',
-    description: 'Retorna recordatorios expirados del usuario autenticado (no enviados)'
+    description:
+      'Retorna recordatorios expirados del usuario autenticado (no enviados)',
   })
-  @ApiResponse({ status: 200, description: 'Recordatorios expirados del usuario' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recordatorios expirados del usuario',
+  })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async getExpired(@Req() req: AuthenticatedRequest) {
     // Solo retorna recordatorios del usuario autenticado — nunca datos de otros usuarios
@@ -168,11 +201,14 @@ export class RemindersController {
 
   /** GET /api/v1/reminders/pending — recordatorios pendientes del usuario autenticado */
   @Get('pending-list')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener mis recordatorios pendientes',
-    description: 'Retorna recordatorios pendientes del usuario autenticado'
+    description: 'Retorna recordatorios pendientes del usuario autenticado',
   })
-  @ApiResponse({ status: 200, description: 'Recordatorios pendientes del usuario' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recordatorios pendientes del usuario',
+  })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async getPending(@Req() req: AuthenticatedRequest) {
     // Solo retorna recordatorios del usuario autenticado — nunca datos de otros usuarios
@@ -181,9 +217,9 @@ export class RemindersController {
 
   /** POST /api/v1/reminders/batch — operaciones batch */
   @Post('batch')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Operaciones batch con recordatorios',
-    description: 'Operaciones múltiples sobre recordatorios'
+    description: 'Operaciones múltiples sobre recordatorios',
   })
   @ApiResponse({ status: 200, description: 'Operaciones batch completadas' })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
@@ -193,10 +229,10 @@ export class RemindersController {
     @Req() req: AuthenticatedRequest,
   ) {
     const results: any[] = [];
-    
+
     for (const action of dto.actions || []) {
       const { type, reminder_id, data } = action;
-      
+
       switch (type) {
         case 'mark_sent':
           if (reminder_id) {
@@ -214,7 +250,12 @@ export class RemindersController {
           if (reminder_id && data) {
             // M-8: Validar data contra UpdateReminderDto antes de pasar al service
             const validatedData = plainToInstance(UpdateReminderDto, data);
-            await this.remindersService.update(reminder_id, req.user.uid, validatedData, getClientIp(req));
+            await this.remindersService.update(
+              reminder_id,
+              req.user.uid,
+              validatedData,
+              getClientIp(req),
+            );
             results.push({ success: true, type: 'update', reminder_id });
           }
           break;
@@ -226,24 +267,29 @@ export class RemindersController {
           break;
         case 'reactivate':
           if (reminder_id) {
-            await this.remindersService.update(reminder_id, req.user.uid, { 
-              is_sent: false, 
-              repeat_count_completed: 0 
-            }, getClientIp(req));
+            await this.remindersService.update(
+              reminder_id,
+              req.user.uid,
+              {
+                is_sent: false,
+                repeat_count_completed: 0,
+              },
+              getClientIp(req),
+            );
             results.push({ success: true, type: 'reactivate', reminder_id });
           }
           break;
       }
     }
-    
+
     return { processed: results.length, results };
   }
 
   /** GET /api/v1/reminders/preferences — obtener preferencias de notificación */
   @Get('user-preferences')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener preferencias de notificación',
-    description: 'Retorna las preferencias de notificación del usuario'
+    description: 'Retorna las preferencias de notificación del usuario',
   })
   @ApiResponse({ status: 200, description: 'Preferencias de notificación' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -260,9 +306,9 @@ export class RemindersController {
 
   /** PATCH /api/v1/reminders/preferences — actualizar preferencias */
   @Patch('preferences')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Actualizar preferencias de notificación',
-    description: 'Actualiza las preferencias de notificación del usuario'
+    description: 'Actualiza las preferencias de notificación del usuario',
   })
   @ApiResponse({ status: 200, description: 'Preferencias actualizadas' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
@@ -276,16 +322,16 @@ export class RemindersController {
 
   /** GET /api/v1/reminders/stats — estadísticas de recordatorios */
   @Get('user-stats')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Obtener estadísticas de recordatorios',
-    description: 'Retorna métricas sobre los recordatorios del usuario'
+    description: 'Retorna métricas sobre los recordatorios del usuario',
   })
   @ApiResponse({ status: 200, description: 'Estadísticas de recordatorios' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async getStats(@Req() req: AuthenticatedRequest) {
     // Implementar lógica para obtener estadísticas
     const stats = await this.remindersService.getStats(req.user.uid);
-    
+
     return {
       total: stats.total,
       pending: stats.pending,

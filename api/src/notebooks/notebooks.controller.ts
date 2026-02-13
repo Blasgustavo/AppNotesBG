@@ -66,7 +66,12 @@ export class NotebooksController {
     @Body() dto: UpdateNotebookDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.notebooksService.update(id, req.user.uid, dto, getClientIp(req));
+    return this.notebooksService.update(
+      id,
+      req.user.uid,
+      dto,
+      getClientIp(req),
+    );
   }
 
   /** DELETE /api/v1/notebooks/:id — elimina una libreta vacía */

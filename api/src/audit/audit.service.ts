@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { isIP } from 'net';
 import { FirestoreService } from '../core/firestore';
 import type { CreateAuditLogDto } from './dto/create-audit-log.dto';
@@ -19,7 +19,6 @@ export class AuditService {
     if (ip === 'unknown') {
       return ip;
     }
-    // isIP returns 4 for IPv4, 6 for IPv6, 0 for invalid
     if (isIP(ip) === 0) {
       this.logger.warn(`Invalid IP address received: ${ip}, using 'unknown'`);
       return 'unknown';
@@ -32,7 +31,6 @@ export class AuditService {
    * Esta colección es solo escritura - no se permite modificación ni eliminación
    */
   async createAuditLog(dto: CreateAuditLogDto): Promise<void> {
-    // Validar y sanitizar IP antes de guardar
     const sanitizedIp = this.validateIpAddress(dto.ip_address);
 
     const auditLog = {
@@ -57,29 +55,25 @@ export class AuditService {
     try {
       const auditRef = this.firestore.collection(AUDIT_LOGS_COL).doc();
       auditLog.id = auditRef.id;
-      
+
       await auditRef.set(auditLog);
-      
+
       this.logger.debug(
         `Audit log created: ${dto.action} on ${dto.resource_type}:${dto.resource_id} by user:${dto.user_id}`,
       );
     } catch (error) {
-      // C-5: Retry once after brief delay
       try {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         const retryRef = this.firestore.collection(AUDIT_LOGS_COL).doc();
         auditLog.id = retryRef.id;
         await retryRef.set(auditLog);
         this.logger.log('Audit log created on retry');
       } catch (retryError) {
-        // Fallback: log to stderr for critical compliance
-        // eslint-disable-next-line no-console
         console.error(
           `[CRITICAL AUDIT FAILURE] ${new Date().toISOString()} - ` +
-          `action=${dto.action} resource=${dto.resource_type}:${dto.resource_id} ` +
-          `user=${dto.user_id} ip=${sanitizedIp} error=${retryError}`,
+            `action=${dto.action} resource=${dto.resource_type}:${dto.resource_id} ` +
+            `user=${dto.user_id} ip=${sanitizedIp} error=${retryError}`,
         );
-        // Don't throw - primary operation should succeed even if audit fails
       }
     }
   }
@@ -147,7 +141,9 @@ export class AuditService {
   /**
    * Obtiene logs de auditoría recientes
    */
-  async findRecent(limit: number = 100): Promise<FirebaseFirestore.DocumentData[]> {
+  async findRecent(
+    limit: number = 100,
+  ): Promise<FirebaseFirestore.DocumentData[]> {
     const snap = await this.firestore
       .collection(AUDIT_LOGS_COL)
       .orderBy('timestamp', 'desc')
@@ -155,5 +151,86 @@ export class AuditService {
       .get();
 
     return snap.docs.map((d) => d.data());
+  }
+
+  /**
+   * Exporta logs de auditoría para compliance
+   * Formato: JSON o CSV
+   */
+  async exportLogs(
+    userId: string | undefined,
+    format: 'json' | 'csv' = 'json',
+    limit?: number,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<any> {
+    if (!userId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const adminEmails = ['admin@appnotesbg.com'];
+    const isAdmin = adminEmails.includes(userId);
+
+    let query: FirebaseFirestore.Query =
+      this.firestore.collection(AUDIT_LOGS_COL);
+
+    if (!isAdmin) {
+      query = query.where('user_id', '==', userId);
+    }
+
+    if (startDate) {
+      const startTimestamp = new Date(startDate);
+      query = query.where('timestamp', '>=', startTimestamp);
+    }
+
+    if (endDate) {
+      const endTimestamp = new Date(endDate);
+      query = query.where('timestamp', '<=', endTimestamp);
+    }
+
+    query = query.orderBy('timestamp', 'desc');
+
+    if (limit) {
+      query = query.limit(Math.min(limit, 1000));
+    }
+
+    const snap = await query.get();
+    const logs = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: data['id'],
+        user_id: data['user_id'],
+        action: data['action'],
+        resource_type: data['resource_type'],
+        resource_id: data['resource_id'],
+        ip_address: data['ip_address'],
+        timestamp:
+          data['timestamp']?.toDate?.()?.toISOString() || data['timestamp'],
+        success: data['security_context']?.success,
+      };
+    });
+
+    if (format === 'csv') {
+      const header =
+        'id,user_id,action,resource_type,resource_id,ip_address,timestamp,success\n';
+      const rows = logs
+        .map(
+          (log: any) =>
+            `${log.id},${log.user_id},${log.action},${log.resource_type},${log.resource_id},${log.ip_address},${log.timestamp},${log.success}`,
+        )
+        .join('\n');
+
+      return {
+        format: 'csv',
+        data: header + rows,
+        count: logs.length,
+      };
+    }
+
+    return {
+      format: 'json',
+      data: logs,
+      count: logs.length,
+    };
   }
 }
