@@ -29,6 +29,7 @@ import {
   NotificationPreferencesDto,
 } from './dto/reminders.dto';
 import { getClientIp } from '../core/request.utils';
+import { plainToInstance } from 'class-transformer';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('reminders')
@@ -210,8 +211,10 @@ export class RemindersController {
           }
           break;
         case 'update':
-          if (reminder_id) {
-            await this.remindersService.update(reminder_id, req.user.uid, data, getClientIp(req));
+          if (reminder_id && data) {
+            // M-8: Validar data contra UpdateReminderDto antes de pasar al service
+            const validatedData = plainToInstance(UpdateReminderDto, data);
+            await this.remindersService.update(reminder_id, req.user.uid, validatedData, getClientIp(req));
             results.push({ success: true, type: 'update', reminder_id });
           }
           break;

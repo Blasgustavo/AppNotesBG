@@ -12,6 +12,7 @@ export class AuthService {
   /**
    * Crea o actualiza el documento del usuario en Firestore al hacer login.
    * Devuelve el perfil y si es un usuario nuevo.
+   * M-9: Usa userRef.create() con manejo de conflicto para evitar race condition
    */
   async loginOrRegister(
     decodedToken: admin.auth.DecodedIdToken,
@@ -63,9 +64,39 @@ export class AuthService {
         },
       };
 
-      await userRef.set(newUser);
-      await this.createDefaultNotebook(uid, now);
-      this.logger.log(`Nuevo usuario registrado: ${uid}`);
+      // M-9: Usar create() en lugar de set() para evitar race condition
+      // Si el documento ya existe, fallará y we'll handle it gracefully
+      try {
+        await userRef.create(newUser);
+        await this.createDefaultNotebook(uid, now);
+        this.logger.log(`Nuevo usuario registrado: ${uid}`);
+      } catch (createError: any) {
+        // Si falla por conflicto (otro request creó el usuario), obtener datos existentes
+        if (createError.code === 6 || createError.message?.includes('already exists')) {
+          this.logger.warn(`Usuario ${uid} ya existe (race condition resuelta)`);
+          // Re-obtener datos del usuario
+          const existingUserSnap = await userRef.get();
+          if (existingUserSnap.exists) {
+            const existingData = existingUserSnap.data();
+            // Actualizar login del usuario existente
+            await userRef.update({
+              last_login_at: now,
+              login_count: this.firestore.increment(1),
+              email_verified: decodedToken.email_verified ?? false,
+              avatar_url: decodedToken.picture ?? existingData?.avatar_url ?? null,
+              updated_at: now,
+            });
+            return {
+              id: uid,
+              email: existingData?.email ?? '',
+              display_name: existingData?.display_name ?? 'Usuario',
+              avatar_url: existingData?.avatar_url ?? null,
+              is_new_user: false,
+            };
+          }
+        }
+        throw createError;
+      }
     } else {
       await userRef.update({
         last_login_at: now,

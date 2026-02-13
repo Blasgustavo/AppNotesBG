@@ -48,24 +48,20 @@ export class NotesService {
     if (query.is_pinned !== undefined) {
       q = q.where('is_pinned', '==', query.is_pinned);
     }
+    
+    // M-2: Firestore requiere orderBy en el mismo campo que inequality filter
+    // Cuando hay filter != en archived_at, debemos orderBy archived_at primero
     if (query.archived === true) {
       q = q.where('archived_at', '!=', null);
+      // Order by archived_at first, then updated_at (Firestore requirement)
+      q = q.orderBy('archived_at', 'desc').orderBy('updated_at', 'desc');
     } else if (!query.archived) {
       q = q.where('archived_at', '==', null);
+      q = q.orderBy('updated_at', 'desc');
+    } else {
+      // No filter on archived - just order by updated_at
+      q = q.orderBy('updated_at', 'desc');
     }
-
-    // Filtrado por tags - usar array-contains-any para múltiples tags
-    if (query.tags && query.tags.length > 0) {
-      if (query.tags.length === 1) {
-        q = q.where('tags', 'array-contains', query.tags[0]);
-      } else {
-        // Firestore permite máximo 10 valores en array-contains-any
-        const tagsToFilter = query.tags.slice(0, 10);
-        q = q.where('tags', 'array-contains-any', tagsToFilter);
-      }
-    }
-
-    q = q.orderBy('updated_at', 'desc').limit(query.limit ?? 20);
 
     if (query.cursor) {
       const cursorSnap = await this.firestore.getDoc(NOTES_COL, query.cursor);

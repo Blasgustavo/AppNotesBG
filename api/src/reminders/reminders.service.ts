@@ -196,10 +196,10 @@ export class RemindersService {
     if (updateData.reminder_at !== undefined) {
       updates['reminder_at'] = this.firestore.timestampFromDate(nextReminderAt);
       updates['next_reminder_at'] = this.calculateNextReminder(nextReminderAt, updateData);
+      // Solo resetear is_sent cuando cambia la fecha del recordatorio
+      updates['is_sent'] = false;
     }
-
-    // Marcar como no enviado para no duplicar notificaciones
-    updates['is_sent'] = false;
+    // NOTA: No reseteamos is_sent si solo se actualiza el mensaje u otros campos
 
     await this.firestore.doc(REMINDERS_COL, reminderId).update(updates);
 
