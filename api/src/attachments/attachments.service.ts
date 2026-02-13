@@ -59,20 +59,18 @@ export class AttachmentsService {
     dto: CreateAttachmentDto,
     ipAddress: string,
   ): Promise<any> {
+    // Validaciones previas al upload (fallan rápido sin tocar Storage)
+    this.validateFile(file);
+    await this.checkUserQuota(userId, file.size);
+    await this.validateNoteOwnership(noteId, userId);
+
+    // Generar nombre único y ruta ANTES del try/catch para poder limpiar en el catch
+    const fileExtension = file.originalname.split('.').pop() || '';
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExtension}`;
+    const storagePath = `users/${userId}/notes/${noteId}/${fileName}`;
+    let storageFileCreated = false;
+
     try {
-      // Validar archivo
-      this.validateFile(file);
-
-      // Verificar cuota del usuario
-      await this.checkUserQuota(userId, file.size);
-
-      // Verificar que la nota existe y pertenece al usuario
-      await this.validateNoteOwnership(noteId, userId);
-
-      // Generar nombre único y ruta
-      const fileExtension = file.originalname.split('.').pop() || '';
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExtension}`;
-      const storagePath = `users/${userId}/notes/${noteId}/${fileName}`;
 
       // Subir archivo a Storage
       const fileRef = this.storage.bucket().file(storagePath);
@@ -83,10 +81,11 @@ export class AttachmentsService {
             originalName: file.originalname,
             uploadedBy: userId,
             uploadedAt: new Date().toISOString(),
-            ipAddress,
+            // No almacenar ipAddress en metadata de Storage (PII)
           },
         },
       });
+      storageFileCreated = true; // Marcar que el archivo fue subido exitosamente
 
       // Obtener URL pública
       const [url] = await fileRef.getSignedUrl({
@@ -177,15 +176,19 @@ export class AttachmentsService {
       const created = await attachmentRef.get();
       return created.data();
     } catch (error) {
-      this.logger.error(`Failed to upload attachment:`, error);
+      this.logger.error(`Failed to upload attachment for user ${userId}:`, error);
 
-      // Limpiar archivo de Storage si falló el registro en Firestore
-      if (file) {
+      // Limpiar archivo de Storage solo si fue subido exitosamente
+      // Usa storagePath correcto (fileName generado), no file.originalname
+      if (storageFileCreated) {
         try {
-          const storagePath = `users/${userId}/notes/${noteId}/${file.originalname}`;
           await this.storage.bucket().file(storagePath).delete();
+          this.logger.log(`Cleaned up orphaned storage file: ${storagePath}`);
         } catch (cleanupError) {
-          this.logger.error('Failed to cleanup storage file:', cleanupError);
+          this.logger.error(
+            `Failed to cleanup orphaned storage file ${storagePath}:`,
+            cleanupError,
+          );
         }
       }
 

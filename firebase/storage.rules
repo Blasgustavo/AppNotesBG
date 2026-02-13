@@ -1,19 +1,52 @@
 rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────
+// AppNotesBG — Storage Security Rules (MVP)
+//
+// MVP: Sin virus scanning ni validaciones avanzadas.
+// Soporta autenticación básica, rutas obligatorias y tamaño máximo.
+// ─────────────────────────────────────────────────────────────────────
+
 service firebase.storage {
-  match /{allPaths=**} {
-    // Denegar todo por defecto, solo permitir reglas específicas
-    allow read, write: if false;
-  }
+  match /b/{bucket}/o {
+    // ─── Helpers ─────────────────────────────────────────────────────
 
-  // Solo usuarios autenticados pueden acceder a sus archivos
-  match /users/{userId}/{allPaths=**} {
-    allow read, write: if request.auth != null && request.auth.uid == userId;
-  }
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
-  // Reglas específicas para attachments con validación
-  match /users/{userId}/notes/{noteId}/{fileId} {
-    allow read, write: if request.auth != null && 
-      request.auth.uid == userId &&
-      request.resource.size <= 10 * 1024 * 1024;
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ─── Adjuntos de notas (users/{userId}/notes/{noteId}/{fileId}) ─────────────────────────────
+
+    match /users/{userId}/notes/{noteId}/{allPaths=**} {
+      // Solo el propietario puede acceder a sus adjuntos.
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
+    // ─── Thumbnails generados (users/{userId}/notes/{noteId}/thumbnails/{allPaths=**}) ─────────────────────────────
+
+    match /users/{userId}/notes/{noteId}/thumbnails/{allPaths=**} {
+      // Solo lectura. Son generados por Cloud Functions.
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    // ─── Temporal uploads (para procesamiento antes de mover a ubicación final) ─────────────────────────────
+
+    match /temp-uploads/{userId}/{allPaths=**} {
+      // Solo el propietario puede subir y gestionar temporales.
+      allow read, write: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // ─── Bloquear cualquier otro acceso ─────────────────────────────────────────────────────
+
+    match /b/{bucket}/o/{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

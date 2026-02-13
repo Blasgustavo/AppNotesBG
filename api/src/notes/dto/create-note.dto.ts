@@ -13,6 +13,7 @@ import {
   Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/swagger';
 import type { TipTapDocument } from '../../../../shared/types/tiptap.types';
 
 export class TipTapContentDto {
@@ -201,11 +202,16 @@ export class CreateNoteDto {
   locking?: LockingDto;
 }
 
-export class UpdateNoteDto extends CreateNoteDto {
+/**
+ * UpdateNoteDto — todos los campos son opcionales (PATCH semántico).
+ * Usa PartialType de @nestjs/swagger para heredar validaciones y hacer todo opcional.
+ * Agrega `version` para optimistic locking en actualizaciones concurrentes.
+ */
+export class UpdateNoteDto extends PartialType(CreateNoteDto) {
   @IsOptional()
   @IsNumber()
   @Min(1)
-  declare version: number;
+  declare version?: number;
 }
 
 /** Parámetros de query para GET /notes */

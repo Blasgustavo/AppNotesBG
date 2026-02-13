@@ -1,73 +1,160 @@
 rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────
+// AppNotesBG — Firestore Security Rules
+//
+// Arquitectura: Frontend → NestJS (Admin SDK) → Firestore
+//
+// El Admin SDK bypasea TODAS estas reglas.
+// Estas reglas solo aplican a lecturas directas del cliente (@angular/fire).
+// para listeners en tiempo real (onSnapshot).
+//
+// PRINCIPIO: El cliente NUNCA escribe directamente a Firestore.
+//            Toda escritura pasa por NestJS (Admin SDK), que bypasea estas reglas.
+// ─────────────────────────────────────────────────────────────────────
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users collection - solo el propietario puede leer/escribir
+
+    // ─── Helpers ─────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Definir explícitamente las variables que se usan en los matches
+    function matchInvitation(invitation) {
+      return isAuthenticated() && (
+        invitation.invited_by_uid == request.auth.uid
+        || invitation.invited_email == request.auth.token.email
+      );
+    }
+
+    function matchCollaborator(note) {
+      return isAuthenticated()
+        && 'sharing' in note
+        && 'collaborators' in note.sharing
+        && note.sharing.collaborators.hasAny([
+            { user_id: request.auth.uid, permission: 'view' },
+            { user_id: request.auth.uid, permission: 'edit' },
+            { user_id: request.auth.uid, permission: 'comment' },
+          ]);
+    }
+
+    // ─── users ─────────────────────────────────────────────────────────────
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // El usuario solo puede leer/actualizar su propio perfil.
+      // Toda escritura (onboarding, actualización de preferencias)
+      // pasa por NestJS (Admin SDK), que bypasea estas reglas.
+      allow read, write: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && resource.data.status in ['active', 'suspended', 'deleted']
+        && 'preferences' in resource.data
+        && 'security' in resource.data
+        && 'quotas' in resource.data
+        && 'audit' in resource.data;
     }
 
-    // Notes collection - ownership verification
-    match /notes/{noteId} {
-      // Solo el propietario o colaboradores pueden leer
-      allow read: if request.auth != null && (
-        request.auth.uid == resource.data.user_id ||
-        request.auth.uid in resource.data.collaborators
-      );
-      
-      // Solo el propietario puede crear/editar/eliminar
-      allow write: if request.auth != null && request.auth.uid == resource.data.user_id;
-    }
+    // ─── notebooks ─────────────────────────────────────────────────────
 
-    // Notebooks collection - solo propietario
     match /notebooks/{notebookId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.user_id;
+      // El cliente puede escuchar libretas en tiempo real.
+      // Toda escritura va por NestJS.
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
     }
 
-    // Note History collection - acceso basado en ownership de la nota
-    match /note_history/{historyId} {
-      allow read: if request.auth != null;
-      
-      // Solo puede escribir si el usuario es propietario de la nota original
-      allow write: if request.auth != null && 
-        request.auth.uid == get(/databases/$(database)/documents/notes/$(resource.data.note_id)).data.user_id;
-    }
+    // ─── notes ─────────────────────────────────────────────────────
 
-    // Attachments collection - ownership verification
-    match /attachments/{attachmentId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.user_id;
-      
-      allow write: if request.auth != null && request.auth.uid == resource.data.user_id;
-    }
-
-    // Invitations collection - acceso controlado
-    match /invitations/{invitationId} {
-      // El invitado puede leer y actualizar status
-      allow read, update: if request.auth != null && 
-        request.auth.uid == get(/databases/$(database)/documents/notes/$(resource.data.note_id)).data.user_id ||
-        request.auth.uid == resource.data.invited_by_uid;
-      
-      // Solo el propietario puede crear/revocar
-      allow create, delete: if request.auth != null && 
-        request.auth.uid == resource.data.invited_by_uid;
-    }
-
-    // Themes collection - sistema de themes personalizados
-    match /themes/{themeId} {
-      // Los themes públicos pueden ser leídos por todos
-      allow read: if request.auth != null && (
-        resource.data.is_public == true ||
-        request.auth.uid == resource.data.user_id
+    match /notes/{noteId} {
+      // El cliente puede escuchar sus notas en tiempo real.
+      // Los colaboradores con permiso 'view'/'comment' pueden leer.
+      // Los colaboradores con permiso 'edit' pueden leer/actualizar.
+      // Toda escritura (creación, actualización) va por NestJS.
+      allow read: if isAuthenticated() && (
+        resource.data.user_id == request.auth.uid
+        || matchCollaborator(resource.data)
       );
-      
-      // Solo el propietario puede crear/editar/eliminar
-      allow write: if request.auth != null && request.auth.uid == resource.data.user_id;
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated()
+        && (
+          resource.data.user_id == request.auth.uid
+          || matchCollaborator(resource.data)
+        );
+      allow delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
     }
 
-    // Audit Logs collection - solo escritura por sistema, lectura por admins
-    match /audit_logs/{auditId} {
-      allow read: if request.auth != null; // Limitar a admins en producción
-      
-      allow write: if false; // Solo el sistema puede escribir (via Admin SDK)
+    // ─── note_history ─────────────────────────────────────────────────────
+
+    match /note_history/{historyId} {
+      // Solo el propietario puede leer el historial.
+      // Inmutable: ni el cliente ni NestJS actualizan/eliminan
+      // (salvo el pruneHistory que es via Admin SDK).
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if false; // Solo Admin SDK
+    }
+
+    // ─── themes ─────────────────────────────────────────────────────
+
+    match /themes/{themeId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create, update, delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── attachments ─────────────────────────────────────────────────────
+
+    match /attachments/{attachmentId} {
+      allow read: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAuthenticated()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── invitations ─────────────────────────────────────────────────────
+
+    match /invitations/{invitationId} {
+      // El invitado y el creador pueden leer la invitación.
+      // El creador puede crear/revocar. El invitado puede aceptar/rechazar.
+      allow read: if matchInvitation(resource.data);
+      allow create: if isAuthenticated()
+        && resource.data.invited_by_uid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        (resource.data.invited_by_uid == request.auth.uid && resource.data.status in ['revoked'])
+        || (
+          resource.data.invited_email == request.auth.token.email
+          && resource.data.status in ['accepted', 'rejected']
+        )
+      );
+      allow delete: if isAuthenticated()
+        && resource.data.invited_by_uid == request.auth.uid;
+    }
+
+    // ─── audit_logs ─────────────────────────────────────────────────────
+
+    match /audit_logs/{logId} {
+      // Completamente inaccesible desde el cliente.
+      // Solo accesible desde Cloud Functions o Admin SDK.
+      allow read, write: if false;
+    }
+
+    // ─── Catch-all: bloquear cualquier otra colección ─────────────────────
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
