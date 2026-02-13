@@ -312,17 +312,24 @@ export class SearchService {
   }
 
   /**
-   * Obtiene estadísticas del índice
+   * Obtiene el número de notas indexadas del usuario (seguro — filtrado por user_id)
+   * No expone logs internos de Algolia ni datos de otros usuarios
    */
-  async getIndexStats(): Promise<any> {
+  async getUserIndexStats(userId: string): Promise<{ indexed_notes: number }> {
     try {
-      const stats = await this.client.getLogs({
-        offset: 0,
-        length: 1,
+      const result = await (this.client as any).search({
+        requests: [{
+          indexName: this.indexName,
+          query: '',
+          filters: `user_id:${userId}`,
+          hitsPerPage: 0, // No necesitamos hits, solo el count
+        }]
       });
-      return stats;
+
+      const firstResult = result.results?.[0] || {};
+      return { indexed_notes: firstResult.nbHits || 0 };
     } catch (error) {
-      this.logger.error('Failed to get index stats:', error);
+      this.logger.error(`Failed to get index stats for user ${userId}:`, error);
       throw error;
     }
   }

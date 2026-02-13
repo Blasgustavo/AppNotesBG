@@ -132,15 +132,16 @@ export class SearchController {
     return { suggestions };
   }
 
-  /** GET /api/v1/search/stats — estadísticas del índice (admin) */
+  /** GET /api/v1/search/stats — estadísticas del índice del usuario autenticado */
   @Get('stats')
   @ApiOperation({
-    summary: 'Obtener estadísticas del índice de búsqueda',
-    description: 'Información sobre tamaño y uso del índice Algolia',
+    summary: 'Obtener estadísticas de búsqueda del usuario',
+    description: 'Retorna el número de notas indexadas del usuario autenticado',
   })
-  @ApiResponse({ status: 200, description: 'Estadísticas del índice' })
+  @ApiResponse({ status: 200, description: 'Estadísticas del índice del usuario' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
-  async getStats(): Promise<any> {
-    return this.searchService.getIndexStats();
+  async getStats(@Req() req: AuthenticatedRequest): Promise<{ indexed_notes: number }> {
+    // Solo retorna estadísticas del usuario autenticado — nunca logs internos de Algolia
+    return this.searchService.getUserIndexStats(req.user.uid);
   }
 }

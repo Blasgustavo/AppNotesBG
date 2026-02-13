@@ -159,26 +159,30 @@ export class RemindersController {
     return { message: 'Reminder marked as sent' };
   }
 
-  /** GET /api/v1/reminders/expired — obtener recordatorios expirados */
+  /** GET /api/v1/reminders/expired — recordatorios expirados del usuario autenticado */
   @Get('expired')
   @ApiOperation({ 
-    summary: 'Obtener recordatorios expirados',
-    description: 'Retorna recordatorios que han expirado'
+    summary: 'Obtener mis recordatorios expirados',
+    description: 'Retorna recordatorios expirados del usuario autenticado (no enviados)'
   })
-  @ApiResponse({ status: 200, description: 'Recordatorios expirados' })
-  async getExpired() {
-    return this.remindersService.findExpired('system');
+  @ApiResponse({ status: 200, description: 'Recordatorios expirados del usuario' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async getExpired(@Req() req: AuthenticatedRequest) {
+    // Solo retorna recordatorios del usuario autenticado — nunca datos de otros usuarios
+    return this.remindersService.findExpired(req.user.uid);
   }
 
-  /** GET /api/v1/reminders/pending — obtener recordatorios pendientes */
+  /** GET /api/v1/reminders/pending — recordatorios pendientes del usuario autenticado */
   @Get('pending')
   @ApiOperation({ 
-    summary: 'Obtener recordatorios pendientes',
-    description: 'Retorna recordatorios que están pendientes de procesar'
+    summary: 'Obtener mis recordatorios pendientes',
+    description: 'Retorna recordatorios pendientes del usuario autenticado'
   })
-  @ApiResponse({ status: 200, description: 'Recordatorios pendientes' })
-  async getPending() {
-    return this.remindersService.findPendingNotifications();
+  @ApiResponse({ status: 200, description: 'Recordatorios pendientes del usuario' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async getPending(@Req() req: AuthenticatedRequest) {
+    // Solo retorna recordatorios del usuario autenticado — nunca datos de otros usuarios
+    return this.remindersService.findPendingByUser(req.user.uid);
   }
 
   /** POST /api/v1/reminders/batch — operaciones batch */

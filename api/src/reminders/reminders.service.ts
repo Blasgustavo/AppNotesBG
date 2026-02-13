@@ -38,7 +38,9 @@ export class RemindersService {
   }
 
   /**
-   * Obtiene un recordatorio específico
+   * Obtiene un recordatorio específico (incluye expirados — para operaciones de lectura)
+   * Verifica ownership pero NO lanza error si el recordatorio está expirado,
+   * para permitir eliminar/actualizar recordatorios pasados.
    */
   async findOne(reminderId: string, userId: string) {
     const snap = await this.firestore.getDoc(REMINDERS_COL, reminderId);
@@ -47,17 +49,26 @@ export class RemindersService {
     }
 
     const data = snap.data() as Record<string, unknown>;
-    
-    // Verificar ownership
+
+    // Verificar ownership — usar NotFoundException para no revelar existencia del recurso
     if (data['user_id'] !== userId) {
-      throw new BadRequestException('Access denied to this reminder');
+      throw new NotFoundException(`Reminder ${reminderId} not found`);
     }
 
-    // Verificar que no esté expirado
+    return data;
+  }
+
+  /**
+   * Obtiene un recordatorio solo si está activo (no expirado, no enviado)
+   * Usar para crear nuevos recordatorios o verificar validez antes de acciones que requieren estado activo
+   */
+  async findOneActive(reminderId: string, userId: string) {
+    const data = await this.findOne(reminderId, userId);
+
     const reminderAtTimestamp = data['reminder_at'] as FirebaseFirestore.Timestamp | undefined;
     const reminderAt = reminderAtTimestamp?.toDate();
     if (reminderAt && reminderAt < new Date()) {
-      throw new BadRequestException('Reminder has expired');
+      throw new BadRequestException('Reminder has already expired');
     }
 
     return data;
@@ -151,23 +162,20 @@ export class RemindersService {
 
   /**
    * Actualiza un recordatorio existente
+   * Soporta actualizar recordatorios expirados (ej: reactivar con nueva fecha)
    */
   async update(reminderId: string, userId: string, updateData: any, ipAddress: string) {
+    // findOne verifica ownership y existencia — permite expirados para actualizaciones
     const existing = await this.findOne(reminderId, userId);
-    const isOwner = existing['user_id'] === userId;
 
-    if (!isOwner) {
-      throw new BadRequestException('Only reminder owner can update reminder');
-    }
-
-    // Si se actualiza el recordatorio, re-calcular siguiente recordatorio
+    // Si se está proporcionando una nueva fecha, debe ser futura
     const existingReminderAt = (existing['reminder_at'] as FirebaseFirestore.Timestamp)?.toDate();
     const nextReminderAt = updateData.reminder_at 
       ? new Date(updateData.reminder_at)
       : existingReminderAt || new Date();
 
-    // Validar que la fecha sea futura
-    if (nextReminderAt <= new Date()) {
+    // Solo validar fecha futura si se está cambiando la fecha
+    if (updateData.reminder_at !== undefined && nextReminderAt <= new Date()) {
       throw new BadRequestException('Reminder date must be in the future');
     }
 
@@ -207,18 +215,14 @@ export class RemindersService {
   }
 
   /**
-   * Elimina un recordatorio
+   * Elimina un recordatorio (incluyendo expirados)
    */
   async remove(reminderId: string, userId: string) {
+    // findOne verifica ownership y existencia — permite expirados para eliminación
     const existing = await this.findOne(reminderId, userId);
-    const isOwner = existing['user_id'] === userId;
 
-    if (!isOwner) {
-      throw new BadRequestException('Only reminder owner can delete reminder');
-    }
-
-    if (existing['is_sent']) {
-      throw new BadRequestException('Cannot delete a reminder that has been sent');
+    if (existing['is_sent'] && existing['repeat_type'] === 'once') {
+      throw new BadRequestException('Cannot delete a one-time reminder that has already been sent');
     }
 
     // Cancelar notificación programada
@@ -233,14 +237,12 @@ export class RemindersService {
    * Marca un recordatorio como enviado y programa el siguiente si es recurrente
    */
   async markAsSent(reminderId: string, userId: string) {
-    const existing = await this.findOne(reminderId, userId);
-    const isOwner = existing['user_id'] === userId;
+    // Para marcar como enviado: verificar ownership pero permitir si ya expiró
+    const existing = userId === 'system'
+      ? await this.findOneBySystem(reminderId)
+      : await this.findOne(reminderId, userId);
 
-    if (!isOwner) {
-      throw new BadRequestException('Only reminder owner can mark reminder as sent');
-    }
-
-    if (existing['is_sent']) {
+    if (existing['is_sent'] && existing['repeat_type'] === 'once') {
       throw new BadRequestException('Reminder is already marked as sent');
     }
 
@@ -275,6 +277,18 @@ export class RemindersService {
   }
 
   /**
+   * Obtiene un recordatorio sin verificar ownership (uso interno/sistema únicamente)
+   * NO usar desde endpoints de usuario — solo para Cloud Functions y tareas programadas
+   */
+  private async findOneBySystem(reminderId: string): Promise<Record<string, unknown>> {
+    const snap = await this.firestore.getDoc(REMINDERS_COL, reminderId);
+    if (!snap.exists) {
+      throw new NotFoundException(`Reminder ${reminderId} not found`);
+    }
+    return snap.data() as Record<string, unknown>;
+  }
+
+  /**
    * Obtiene recordatorios expirados
    */
   async findExpired(userId: string) {
@@ -294,7 +308,29 @@ export class RemindersService {
   }
 
   /**
-   * Obtiene recordatorios que necesitan ser procesados
+   * Obtiene recordatorios pendientes de un usuario específico
+   * NOTA: Este método es seguro — siempre filtra por userId
+   */
+  async findPendingByUser(userId: string) {
+    const now = this.firestore.serverTimestamp;
+    const snap = await this.firestore
+      .collection(REMINDERS_COL)
+      .where('user_id', '==', userId)
+      .where('reminder_at', '<=', now)
+      .where('is_sent', '==', false)
+      .limit(50)
+      .get();
+
+    return snap.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id,
+    }));
+  }
+
+  /**
+   * Obtiene recordatorios que necesitan ser procesados (uso interno/Cloud Functions únicamente)
+   * ADVERTENCIA: Este método retorna datos de TODOS los usuarios.
+   * NO exponer en endpoints públicos — usar solo desde Cloud Functions o tareas programadas.
    */
   async findPendingNotifications() {
     const now = this.firestore.serverTimestamp;

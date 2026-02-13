@@ -2,8 +2,19 @@
 // Compatible con ProseMirror/Tiptap 2+
 
 export interface TipTapDocument {
+  /** Versión del schema — debe ser '2.0'. Requerida para validación en TipTapService. */
+  schema_version: '2.0';
   type: 'doc';
   content?: TipTapNode[];
+  /** Metadata calculada por el backend — no enviar desde el cliente */
+  metadata?: {
+    word_count?: number;
+    character_count?: number;
+    last_hash?: string;
+    sanitized_at?: string;
+    sanitized_by?: string;
+    created_with?: string;
+  };
 }
 
 export interface TipTapNode {
@@ -58,11 +69,32 @@ export interface TipTapLinkMark extends TipTapMark {
 }
 
 // Utilities
+
+/**
+ * Type guard para TipTapDocument v2.
+ * Verifica la estructura mínima requerida: type=doc, content=[],  schema_version=2.0
+ */
 export function isValidTipTapDocument(obj: any): obj is TipTapDocument {
-  return obj && 
-         obj.type === 'doc' && 
-         Array.isArray(obj.content) && 
-         obj.content.length >= 0;
+  return (
+    obj !== null &&
+    obj !== undefined &&
+    obj.type === 'doc' &&
+    obj.schema_version === '2.0' &&
+    Array.isArray(obj.content)
+  );
+}
+
+/**
+ * Crea un documento TipTap vacío válido para usar como valor por defecto
+ */
+export function createEmptyTipTapDocument(): TipTapDocument {
+  return {
+    schema_version: '2.0',
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [] },
+    ],
+  };
 }
 
 export function extractTextFromTipTap(node: TipTapNode): string {
