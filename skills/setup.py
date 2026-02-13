@@ -32,6 +32,73 @@ from enum import Enum
 import tempfile
 
 # =============================================================================
+# IMPORTACIONES DE RICH (CON INSTALACIÓN AUTOMÁTICA)
+# =============================================================================
+
+def install_and_import_rich():
+    """Instala Rich si no está disponible y lo importa"""
+    try:
+        import rich
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.text import Text
+        from rich.table import Table
+        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+        from rich.prompt import Prompt, Confirm, IntPrompt
+        from rich.style import Style
+        from rich import box
+        from rich.align import Align
+        from rich.columns import Columns
+        from rich.tree import Tree
+        from rich.syntax import Syntax
+        from rich.live import Live
+        return True
+    except ImportError:
+        print("📦 Instalando dependencias necesarias (rich, requests, pyyaml)...")
+        print("   Esto puede tardar unos segundos...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "rich", "requests", "pyyaml"])
+            print("✅ Dependencias instaladas correctamente\n")
+            # Reintentar importación
+            import rich
+            from rich.console import Console
+            from rich.panel import Panel
+            from rich.text import Text
+            from rich.table import Table
+            from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+            from rich.prompt import Prompt, Confirm, IntPrompt
+            from rich.style import Style
+            from rich import box
+            from rich.align import Align
+            from rich.columns import Columns
+            from rich.tree import Tree
+            from rich.syntax import Syntax
+            from rich.live import Live
+            return True
+        except Exception as e:
+            print(f"❌ Error instalando dependencias: {e}")
+            print("   Por favor instala manualmente: pip install rich requests pyyaml")
+            sys.exit(1)
+
+# Instalar e importar Rich
+install_and_import_rich()
+
+# Ahora importar globalmente
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+from rich.prompt import Prompt, Confirm, IntPrompt
+from rich.style import Style
+from rich import box
+from rich.align import Align
+from rich.columns import Columns
+from rich.tree import Tree
+from rich.syntax import Syntax
+from rich.live import Live
+
+# =============================================================================
 # CONFIGURACIÓN GLOBAL
 # =============================================================================
 
@@ -194,27 +261,6 @@ class Icons:
     ANTHROPIC = "🧠"
     GOOGLE = "✨"
 
-def setup_rich():
-    """Configura e importa Rich, instalando si es necesario"""
-    try:
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.text import Text
-        from rich.table import Table
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
-        from rich.prompt import Prompt, Confirm, IntPrompt
-        from rich.style import Style
-        from rich import box
-        from rich.align import Align
-        from rich.columns import Columns
-        from rich.tree import Tree
-        from rich.syntax import Syntax
-        from rich.live import Live
-        from rich.spinner import Spinner
-        return True
-    except ImportError:
-        return False
-
 class UI:
     """Interfaz de usuario interactiva con Rich"""
     
@@ -369,8 +415,8 @@ class SetupLogger:
     def warning(self, msg: str):
         self.logger.warning(msg)
     
-    def error(self, msg: str):
-        self.logger.error(msg)
+    def error(self, msg: str, exc_info: bool = False):
+        self.logger.error(msg, exc_info=exc_info)
     
     def critical(self, msg: str):
         self.logger.critical(msg)
@@ -744,7 +790,7 @@ class SkillTransformer:
     def transform_all(self, skills: List[Path], assistant_id: str) -> int:
         """Transforma todos los skills para un asistente"""
         config = CONFIG.ASSISTANTS[assistant_id]
-        output_dir = config['skills_dir']
+        output_dir = CONFIG.get_assistant_dir(assistant_id) / config['skills_subdir']
         
         self.logger.section(f"TRANSFORMACIÓN PARA {config['name'].upper()}")
         self.ui.print_section(
@@ -1224,7 +1270,8 @@ class MultiAssistantInstaller:
         ))
         
         if dry_run:
-            self.ui.print_muted(f"[DRY-RUN] Se instalaría en: {config['skills_dir']}")
+            skills_dir = CONFIG.get_assistant_dir(assistant_id) / config['skills_subdir']
+            self.ui.print_muted(f"[DRY-RUN] Se instalaría en: {skills_dir}")
             return
         
         # Transformar skills

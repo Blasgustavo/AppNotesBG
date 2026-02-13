@@ -1,0 +1,53 @@
+{
+  "project": {
+    "name": "AppNotesBG",
+    "version": "1.0.0",
+    "generated_at": "2026-02-12T19:38:20.867821",
+    "last_update": "2026-02-12T19:38:20.867831"
+  },
+  "configuration": {
+    "active_assistants": [
+      "opencode"
+    ],
+    "default_assistant": "opencode",
+    "auto_update": true,
+    "log_level": "INFO"
+  },
+  "skills": {
+    "source_directory": "C:\\Users\\qty94\\Documents\\Projects\\NoteApp\\skills",
+    "total_count": 31,
+    "installed_for": [
+      "opencode"
+    ]
+  },
+  "providers": {
+    "openai": {
+      "configured": false,
+      "models": [
+        "gpt-4",
+        "gpt-4-turbo",
+        "gpt-3.5-turbo"
+      ]
+    },
+    "anthropic": {
+      "configured": false,
+      "models": [
+        "claude-3-opus",
+        "claude-3-sonnet",
+        "claude-3-haiku"
+      ]
+    },
+    "google": {
+      "configured": false,
+      "models": [
+        "gemini-pro",
+        "gemini-ultra"
+      ]
+    }
+  },
+  "metadata": {
+    "installer_version": "1.0.0",
+    "installation_path": "C:\\Users\\qty94\\Documents\\Projects\\NoteApp",
+    "log_file": "C:\\Users\\qty94\\Documents\\Projects\\NoteApp\\setup.log"
+  }
+}

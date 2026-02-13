@@ -1,0 +1,10 @@
+# AppNotesBG Setup Ignore
+# Skills excluidos de la instalación
+# Sintaxis: uno por línea, soporta wildcards
+
+# Ejemplos (descomenta para usar):
+# README.md
+# CHANGELOG.md
+# draft-*
+# experimental/*
+# *-test.md
