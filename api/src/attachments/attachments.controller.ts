@@ -30,6 +30,7 @@ import {
   CreateAttachmentDto,
   UpdateAttachmentDto,
 } from './dto/create-attachment.dto';
+import { getClientIp } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('attachments')
@@ -37,14 +38,6 @@ import type { AuthenticatedRequest } from '../core/firebase';
 @Controller('attachments')
 export class AttachmentsController {
   constructor(private readonly attachmentsService: AttachmentsService) {}
-
-  private ip(req: AuthenticatedRequest): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown'
-    );
-  }
 
   /** POST /api/v1/attachments — subir archivo */
   @Post()
@@ -83,7 +76,7 @@ export class AttachmentsController {
       dto.note_id,
       file,
       dto,
-      this.ip(req),
+      getClientIp(req),
     );
   }
 
@@ -158,7 +151,7 @@ export class AttachmentsController {
       id,
       req.user.uid,
       dto,
-      this.ip(req),
+      getClientIp(req),
     );
   }
 

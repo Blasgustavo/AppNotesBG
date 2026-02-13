@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { NotebooksService } from './notebooks.service';
 import { CreateNotebookDto, UpdateNotebookDto } from './dto/notebook.dto';
+import { getClientIp } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('notebooks')
@@ -52,11 +53,7 @@ export class NotebooksController {
   @ApiOperation({ summary: 'Crear una nueva libreta' })
   @ApiResponse({ status: 201, description: 'Libreta creada' })
   create(@Body() dto: CreateNotebookDto, @Req() req: AuthenticatedRequest) {
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown';
-    return this.notebooksService.create(req.user.uid, dto, ip);
+    return this.notebooksService.create(req.user.uid, dto, getClientIp(req));
   }
 
   /** PATCH /api/v1/notebooks/:id — actualiza una libreta */
@@ -69,11 +66,7 @@ export class NotebooksController {
     @Body() dto: UpdateNotebookDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown';
-    return this.notebooksService.update(id, req.user.uid, dto, ip);
+    return this.notebooksService.update(id, req.user.uid, dto, getClientIp(req));
   }
 
   /** DELETE /api/v1/notebooks/:id — elimina una libreta vacía */

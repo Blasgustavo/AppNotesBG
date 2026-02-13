@@ -92,7 +92,12 @@ export class NotesService {
   }
 
   /** Crea una nota y guarda snapshot v1 en note_history */
-  async create(userId: string, dto: CreateNoteDto, ipAddress: string) {
+  async create(
+    userId: string,
+    dto: CreateNoteDto,
+    ipAddress: string,
+    userAgent: string,
+  ) {
     // Verificar que el notebook existe y pertenece al usuario
     await this.assertNotebookOwnership(dto.notebook_id, userId);
 
@@ -210,14 +215,14 @@ export class NotesService {
     await batch.commit();
     this.logger.log(`Nota creada: ${noteRef.id} por usuario: ${userId}`);
 
-    // Registrar auditoría
+    // Registrar auditoría con el User-Agent real del cliente
     await this.auditService.log(
       userId,
       'create',
       'note',
       noteRef.id,
       ipAddress,
-      'NotesService/1.0',
+      userAgent,
       {
         after: { title: dto.title, notebook_id: dto.notebook_id },
       },
@@ -233,6 +238,7 @@ export class NotesService {
     userId: string,
     dto: UpdateNoteDto,
     ipAddress: string,
+    userAgent: string,
   ) {
     const existing = await this.findOne(noteId, userId);
 
@@ -244,41 +250,48 @@ export class NotesService {
     const nextVersion = ((existing['version'] as number) ?? 1) + 1;
     const now = this.firestore.serverTimestamp;
 
-    // Validar y sanitizar contenido TipTap
-    const validation = this.tipTap.validateSchema(
-      dto.content as TipTapDocument,
-    );
-    if (!validation.isValid) {
-      throw new BadRequestException(
-        `Invalid TipTap content: ${validation.errors.join(', ')}`,
-      );
+    // Solo validar y sanitizar contenido si se proporciona en el PATCH
+    let sanitizedContent: TipTapDocument | undefined;
+    let metrics: { word_count: number; reading_time_minutes: number } | undefined;
+    let contentHash: string | undefined;
+    let checksum: string | undefined;
+
+    if (dto.content !== undefined) {
+      const validation = this.tipTap.validateSchema(dto.content as TipTapDocument);
+      if (!validation.isValid) {
+        throw new BadRequestException(
+          `Invalid TipTap content: ${validation.errors.join(', ')}`,
+        );
+      }
+
+      sanitizedContent = this.tipTap.sanitizeContent(dto.content as TipTapDocument);
+      metrics = this.tipTap.calculateMetrics(sanitizedContent);
+      contentHash = this.tipTap.generateContentHash(sanitizedContent);
+      checksum = this.tipTap.generateChecksum(sanitizedContent);
     }
 
-    const sanitizedContent = this.tipTap.sanitizeContent(
-      dto.content as TipTapDocument,
-    );
-    const metrics = this.tipTap.calculateMetrics(sanitizedContent);
-    const contentHash = this.tipTap.generateContentHash(sanitizedContent);
     const isSnapshot =
       nextVersion === 1 || nextVersion % SNAPSHOT_INTERVAL === 0;
 
+    // Construir objeto de updates - solo los campos proporcionados
     const updates: Record<string, unknown> = {
-      title: dto.title,
-      content: sanitizedContent,
-      content_hash: contentHash,
-      checksum: this.tipTap.generateChecksum(sanitizedContent),
-      version: nextVersion,
-      sync_status: 'synced',
-      last_sync_at: now,
       updated_at: now,
-      tags: dto.tags ?? existing['tags'],
-      is_pinned: dto.is_pinned ?? existing['is_pinned'],
-      word_count: metrics.word_count,
-      reading_time_minutes: metrics.reading_time_minutes,
       'audit.last_updated_by': userId,
       'audit.last_updated_ip': ipAddress,
     };
 
+    // Solo actualizar contenido si fue proporcionado
+    if (sanitizedContent !== undefined && metrics !== undefined && contentHash !== undefined && checksum !== undefined) {
+      updates.content = sanitizedContent;
+      updates.content_hash = contentHash;
+      updates.checksum = checksum;
+      updates.word_count = metrics.word_count;
+      updates.reading_time_minutes = metrics.reading_time_minutes;
+    }
+
+    if (dto.title !== undefined) updates.title = dto.title;
+    if (dto.tags !== undefined) updates.tags = dto.tags;
+    if (dto.is_pinned !== undefined) updates.is_pinned = dto.is_pinned;
     if (dto.notebook_id) updates['notebook_id'] = dto.notebook_id;
     if (dto.style) updates['style'] = dto.style;
     if (dto.font) updates['font'] = dto.font;
@@ -293,13 +306,15 @@ export class NotesService {
         collaborators: dto.sharing.collaborators ?? existingSharing?.collaborators ?? [],
       };
     }
-    if (dto.locking) {
+    // C-4: locked_by siempre se fuerza al usuario actual - nunca permitir que el cliente forneje ownership
+    if (dto.locking !== undefined) {
       const existingLocking = existing['locking'] as Record<string, any> | undefined;
+      const nowTimestamp = this.firestore.serverTimestamp;
       updates['locking'] = {
-        locked_by: dto.locking.locked_by ?? existingLocking?.locked_by,
+        locked_by: userId, // Siempre forzar al usuario actual
         locked_at: dto.locking.locked_at 
           ? this.firestore.timestampFromDate(new Date(dto.locking.locked_at))
-          : existingLocking?.locked_at,
+          : (existingLocking?.locked_at ?? nowTimestamp),
         lock_expires: dto.locking.lock_expires 
           ? this.firestore.timestampFromDate(new Date(dto.locking.lock_expires))
           : existingLocking?.lock_expires,
@@ -332,17 +347,17 @@ export class NotesService {
 
     await batch.commit();
 
-    // Registrar auditoría
+    // Registrar auditoría con el User-Agent real del cliente
     await this.auditService.log(
       userId,
       'update',
       'note',
       noteId,
       ipAddress,
-      'NotesService/1.0',
+      userAgent,
       {
         before: { title: existing['title'], version: existing['version'] },
-        after: { title: dto.title, version: nextVersion },
+        after: { title: dto.title ?? existing['title'], version: nextVersion },
       },
     );
 
@@ -354,7 +369,12 @@ export class NotesService {
   }
 
   /** Soft delete: pone deleted_at, no borra el documento */
-  async softDelete(noteId: string, userId: string, ipAddress: string): Promise<void> {
+  async softDelete(
+    noteId: string,
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<void> {
     const noteData = await this.findOne(noteId, userId);
     const notebookId = noteData['notebook_id'] as string;
 
@@ -369,14 +389,14 @@ export class NotesService {
     await batch.commit();
     this.logger.log(`Nota soft-deleted: ${noteId}`);
 
-    // Registrar auditoría
+    // Registrar auditoría con el User-Agent real del cliente
     await this.auditService.log(
       userId,
       'delete',
       'note',
       noteId,
       ipAddress,
-      'NotesService/1.0',
+      userAgent,
       {
         before: { title: noteData['title'], deleted_at: null },
         after: { title: noteData['title'], deleted_at: 'soft-deleted' },
@@ -432,6 +452,7 @@ export class NotesService {
     userId: string,
     version: number,
     ipAddress: string,
+    userAgent: string,
   ) {
     await this.findOne(noteId, userId);
 
@@ -474,7 +495,8 @@ export class NotesService {
     this.logger.log(
       `Nota ${noteId} restaurada a versión ${version} por ${userId}`,
     );
-    return this.update(noteId, userId, updateDto, ipAddress);
+    // Para restoreVersion, usamos 'Restoration/1.0' como userAgent
+    return this.update(noteId, userId, updateDto, ipAddress, 'Restoration/1.0');
   }
 
   // ─────────────────────────────────────────────

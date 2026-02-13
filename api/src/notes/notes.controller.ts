@@ -26,6 +26,7 @@ import {
   QueryNotesDto,
   RestoreVersionDto,
 } from './dto/create-note.dto';
+import { getClientIp, getUserAgent } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('notes')
@@ -33,14 +34,6 @@ import type { AuthenticatedRequest } from '../core/firebase';
 @Controller('notes')
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
-
-  private ip(req: AuthenticatedRequest): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown'
-    );
-  }
 
   /** GET /api/v1/notes — lista notas con filtros y paginación */
   @Get()
@@ -76,7 +69,12 @@ export class NotesController {
     description: 'Nota creada con snapshot v1 en historial',
   })
   create(@Body() dto: CreateNoteDto, @Req() req: AuthenticatedRequest) {
-    return this.notesService.create(req.user.uid, dto, this.ip(req));
+    return this.notesService.create(
+      req.user.uid,
+      dto,
+      getClientIp(req),
+      getUserAgent(req),
+    );
   }
 
   /** PATCH /api/v1/notes/:id — actualiza una nota */
@@ -94,7 +92,13 @@ export class NotesController {
     @Body() dto: UpdateNoteDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.notesService.update(id, req.user.uid, dto, this.ip(req));
+    return this.notesService.update(
+      id,
+      req.user.uid,
+      dto,
+      getClientIp(req),
+      getUserAgent(req),
+    );
   }
 
   /** DELETE /api/v1/notes/:id — soft delete */
@@ -106,7 +110,12 @@ export class NotesController {
   @ApiParam({ name: 'id', description: 'ID de la nota' })
   @ApiResponse({ status: 204, description: 'Nota eliminada (soft delete)' })
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.notesService.softDelete(id, req.user.uid, this.ip(req));
+    return this.notesService.softDelete(
+      id,
+      req.user.uid,
+      getClientIp(req),
+      getUserAgent(req),
+    );
   }
 
   /** PATCH /api/v1/notes/:id/archive — alterna archivado */
@@ -148,7 +157,8 @@ export class NotesController {
       id,
       req.user.uid,
       dto.version,
-      this.ip(req),
+      getClientIp(req),
+      getUserAgent(req),
     );
   }
 }

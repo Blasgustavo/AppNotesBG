@@ -6,6 +6,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { getClientIp, getUserAgent } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('auth')
@@ -31,11 +32,10 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Token inválido o expirado' })
   async me(@Req() req: AuthenticatedRequest) {
-    const ipAddress =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown';
-
-    return this.authService.loginOrRegister(req.user, ipAddress);
+    return this.authService.loginOrRegister(
+      req.user,
+      getClientIp(req),
+      getUserAgent(req),
+    );
   }
 }

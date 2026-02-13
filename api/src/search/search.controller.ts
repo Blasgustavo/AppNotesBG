@@ -14,6 +14,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { SearchService, SearchOptions, SearchResult } from './search.service';
+import { getClientIp } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('search')
@@ -21,14 +22,6 @@ import type { AuthenticatedRequest } from '../core/firebase';
 @Controller('search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
-
-  private ip(req: AuthenticatedRequest): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown'
-    );
-  }
 
   /** GET /api/v1/search — búsqueda full-text de notas */
   @Get()

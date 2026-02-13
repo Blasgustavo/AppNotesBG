@@ -293,9 +293,10 @@ export class RemindersService {
 
   /**
    * Obtiene recordatorios expirados
+   * H-5 FIX: Usar Timestamp.now() en lugar de serverTimestamp en queries
    */
   async findExpired(userId: string) {
-    const now = this.firestore.serverTimestamp;
+    const now = admin.firestore.Timestamp.now();
     const snap = await this.firestore
       .collection(REMINDERS_COL)
       .where('user_id', '==', userId)
@@ -313,9 +314,10 @@ export class RemindersService {
   /**
    * Obtiene recordatorios pendientes de un usuario específico
    * NOTA: Este método es seguro — siempre filtra por userId
+   * H-5 FIX: Usar Timestamp.now() en lugar de serverTimestamp en queries
    */
   async findPendingByUser(userId: string) {
-    const now = this.firestore.serverTimestamp;
+    const now = admin.firestore.Timestamp.now();
     const snap = await this.firestore
       .collection(REMINDERS_COL)
       .where('user_id', '==', userId)
@@ -334,9 +336,10 @@ export class RemindersService {
    * Obtiene recordatorios que necesitan ser procesados (uso interno/Cloud Functions únicamente)
    * ADVERTENCIA: Este método retorna datos de TODOS los usuarios.
    * NO exponer en endpoints públicos — usar solo desde Cloud Functions o tareas programadas.
+   * H-5 FIX: Usar Timestamp.now() en lugar de serverTimestamp en queries
    */
   async findPendingNotifications() {
-    const now = this.firestore.serverTimestamp;
+    const now = admin.firestore.Timestamp.now();
     const snap = await this.firestore
       .collection(REMINDERS_COL)
       .where('reminder_at', '<=', now)
@@ -468,11 +471,13 @@ export class RemindersService {
 
   /**
    * Ejecuta recordatorios expirados
+   * H-6 FIX: Usar findPendingNotifications() en lugar de findExpired('system')
+   * que siempre retornaba cero resultados
    */
   async processExpiredReminders() {
-    const expired = await this.findExpired('system');
+    const pendingReminders = await this.findPendingNotifications();
     
-    for (const reminder of expired) {
+    for (const reminder of pendingReminders) {
       this.logger.log(`Processing expired reminder: ${reminder.id}`);
       
       // Marcar como expirado

@@ -28,6 +28,7 @@ import {
   BatchRemindersDto,
   NotificationPreferencesDto,
 } from './dto/reminders.dto';
+import { getClientIp } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('reminders')
@@ -35,14 +36,6 @@ import type { AuthenticatedRequest } from '../core/firebase';
 @Controller('reminders')
 export class RemindersController {
   constructor(private readonly remindersService: RemindersService) {}
-
-  private ip(req: AuthenticatedRequest): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown'
-    );
-  }
 
   /** GET /api/v1/reminders — lista de recordatorios del usuario */
   @Get()
@@ -99,7 +92,7 @@ export class RemindersController {
     @Body() dto: CreateReminderDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.remindersService.create(req.user.uid, dto.note_id, dto, this.ip(req));
+    return this.remindersService.create(req.user.uid, dto.note_id, dto, getClientIp(req));
   }
 
   /** PATCH /api/v1/reminders/:id — actualizar recordatorio */
@@ -118,7 +111,7 @@ export class RemindersController {
     @Body() dto: UpdateReminderDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.remindersService.update(id, req.user.uid, dto, this.ip(req));
+    return this.remindersService.update(id, req.user.uid, dto, getClientIp(req));
   }
 
   /** DELETE /api/v1/reminders/:id — eliminar recordatorio */
@@ -159,8 +152,8 @@ export class RemindersController {
     return { message: 'Reminder marked as sent' };
   }
 
-  /** GET /api/v1/reminders/expired — recordatorios expirados del usuario autenticado */
-  @Get('expired')
+  /** GET /api/v1/reminders/by-status — listar por estado (pending/sent/expired) */
+  @Get('by-status')
   @ApiOperation({ 
     summary: 'Obtener mis recordatorios expirados',
     description: 'Retorna recordatorios expirados del usuario autenticado (no enviados)'
@@ -173,7 +166,7 @@ export class RemindersController {
   }
 
   /** GET /api/v1/reminders/pending — recordatorios pendientes del usuario autenticado */
-  @Get('pending')
+  @Get('pending-list')
   @ApiOperation({ 
     summary: 'Obtener mis recordatorios pendientes',
     description: 'Retorna recordatorios pendientes del usuario autenticado'
@@ -218,7 +211,7 @@ export class RemindersController {
           break;
         case 'update':
           if (reminder_id) {
-            await this.remindersService.update(reminder_id, req.user.uid, data, this.ip(req));
+            await this.remindersService.update(reminder_id, req.user.uid, data, getClientIp(req));
             results.push({ success: true, type: 'update', reminder_id });
           }
           break;
@@ -233,7 +226,7 @@ export class RemindersController {
             await this.remindersService.update(reminder_id, req.user.uid, { 
               is_sent: false, 
               repeat_count_completed: 0 
-            }, this.ip(req));
+            }, getClientIp(req));
             results.push({ success: true, type: 'reactivate', reminder_id });
           }
           break;
@@ -244,7 +237,7 @@ export class RemindersController {
   }
 
   /** GET /api/v1/reminders/preferences — obtener preferencias de notificación */
-  @Get('preferences')
+  @Get('user-preferences')
   @ApiOperation({ 
     summary: 'Obtener preferencias de notificación',
     description: 'Retorna las preferencias de notificación del usuario'
@@ -279,7 +272,7 @@ export class RemindersController {
   }
 
   /** GET /api/v1/reminders/stats — estadísticas de recordatorios */
-  @Get('stats')
+  @Get('user-stats')
   @ApiOperation({ 
     summary: 'Obtener estadísticas de recordatorios',
     description: 'Retorna métricas sobre los recordatorios del usuario'

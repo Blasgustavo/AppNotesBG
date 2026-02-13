@@ -16,6 +16,7 @@ export class AuthService {
   async loginOrRegister(
     decodedToken: admin.auth.DecodedIdToken,
     ipAddress: string,
+    userAgent: string,
   ): Promise<AuthMeResponseDto> {
     const uid = decodedToken.uid;
     const userRef = this.firestore.doc('users', uid);

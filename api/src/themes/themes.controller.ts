@@ -33,6 +33,7 @@ import {
   ThemeImportDto,
   ThemeShareDto,
 } from './dto/theme.dto';
+import { getClientIp } from '../core/request.utils';
 import type { AuthenticatedRequest } from '../core/firebase';
 
 @ApiTags('themes')
@@ -40,14 +41,6 @@ import type { AuthenticatedRequest } from '../core/firebase';
 @Controller('themes')
 export class ThemesController {
   constructor(private readonly themesService: ThemesService) {}
-
-  private ip(req: AuthenticatedRequest): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-      req.socket.remoteAddress ??
-      'unknown'
-    );
-  }
 
   /** GET /api/v1/themes — lista de temas del usuario */
   @Get()
@@ -102,7 +95,7 @@ export class ThemesController {
   })
   @ApiResponse({ status: 401, description: 'No autorizado' })
   async create(@Body() dto: CreateThemeDto, @Req() req: AuthenticatedRequest) {
-    return this.themesService.create(req.user.uid, dto, this.ip(req));
+    return this.themesService.create(req.user.uid, dto, getClientIp(req));
   }
 
   /** PATCH /api/v1/themes/:id — actualizar tema */
@@ -120,7 +113,7 @@ export class ThemesController {
     @Body() dto: UpdateThemeDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.themesService.update(id, req.user.uid, dto, this.ip(req));
+    return this.themesService.update(id, req.user.uid, dto, getClientIp(req));
   }
 
   /** POST /api/v1/themes/apply — aplicar tema */
@@ -136,7 +129,7 @@ export class ThemesController {
     @Body() dto: ApplyThemeDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    await this.themesService.applyTheme(req.user.uid, dto, this.ip(req));
+    await this.themesService.applyTheme(req.user.uid, dto, getClientIp(req));
     return { message: 'Theme applied successfully' };
   }
 
@@ -182,7 +175,7 @@ export class ThemesController {
     @Body() dto: CloneThemeDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.themesService.cloneTheme(req.user.uid, dto, this.ip(req));
+    return this.themesService.cloneTheme(req.user.uid, dto, getClientIp(req));
   }
 
   /** DELETE /api/v1/themes/:id — eliminar tema */
@@ -207,8 +200,8 @@ export class ThemesController {
     return this.themesService.remove(id, req.user.uid);
   }
 
-  /** GET /api/v1/themes/default — temas por defecto */
-  @Get('default')
+  /** GET /api/v1/themes/system — temas por defecto del sistema */
+  @Get('system')
   @ApiOperation({
     summary: 'Obtener temas por defecto',
     description: 'Retorna los temas predefinidos del sistema',
@@ -241,8 +234,8 @@ export class ThemesController {
     };
   }
 
-  /** GET /api/v1/themes/export — exportar temas */
-  @Get('export')
+  /** GET /api/v1/themes/export-data — exportar temas */
+  @Get('export-data')
   @ApiOperation({
     summary: 'Exportar temas',
     description: 'Exporta temas en formato JSON o CSS',

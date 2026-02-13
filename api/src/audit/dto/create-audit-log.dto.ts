@@ -5,8 +5,8 @@ import {
   IsObject,
   IsNumber,
   Min,
-  Matches,
   Length,
+  Matches,
 } from 'class-validator';
 
 export class CreateAuditLogDto {
@@ -45,16 +45,18 @@ export class CreateAuditLogDto {
   @IsString()
   resource_id!: string;
 
+  /**
+   * IP address - valid IPv4, IPv6, or 'unknown' sentinel
+   * Validation is done in the service to avoid regex complexity
+   */
   @IsString()
-  @Matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, {
-    message: 'Invalid IP address format',
-  })
   ip_address!: string;
 
+  /**
+   * User-Agent string from the request
+   * Accepts any length since it's from the server-side request, not user input
+   */
   @IsString()
-  @Length(10, 500, {
-    message: 'User agent must be between 10 and 500 characters',
-  })
   user_agent!: string;
 
   @IsOptional()
