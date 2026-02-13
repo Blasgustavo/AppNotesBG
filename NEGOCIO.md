@@ -1288,6 +1288,26 @@ Usuario → clic "Continuar con Google"
 | **Logging** | Winston integrado via `nest-winston` — logs JSON estructurados en producción, coloridos en desarrollo |
 | **Coding standards** | Creados `skills/AppNotesBG-meta/coding-standards/nestjs.md` y `typescript.md` |
 
+### ✅ Completado — Segunda Auditoría (2026-02-14)
+
+| Área | Mejoras aplicadas |
+|---|---|
+| **IP Spoofing** | Nuevo helper `getClientIp(req)` en `core/request.utils.ts` que usa `req.ip` (respeta trust proxy) en lugar de raw `x-forwarded-for` header |
+| **User-Agent real** | Propagado `userAgent` desde controllers → services → audit logs (antes siempre era `'NotesService/1.0'`) |
+| **IP validation** | Removido regex inválido de `CreateAuditLogDto`; validación server-side con `net.isIP()` en `AuditService.validateIpAddress()` |
+| **Audit failures** | Retry una vez + fallback a stderr para compliance crítico |
+| **Route shadows** | Renombradas rutas `/themes/default` → `/system`, `/export` → `/export-data`, `/reminders/expired` → `/by-status`, etc. |
+| **serverTimestamp en queries** | `RemindersService.findExpired()`, `findPendingByUser()`, `findPendingNotifications()` ahora usan `admin.firestore.Timestamp.now()` |
+| **update() crash** | `NotesService.update()` ahora solo procesa TipTap si `dto.content !== undefined` |
+| **locked_by forging** | `locked_by` siempre forzado a `req.user.uid` en `NotesService.update()` — usuarios no pueden forjar ownership |
+| **processExpiredReminders** | Cambiado de `findExpired('system')` a `findPendingNotifications()` — ahora funciona correctamente |
+| **TestModule** | Removido de AppModule - no disponible en producción |
+| **restoreVersion timestamps** | Fix de spread de Firestore Timestamps en `UpdateNoteDto` |
+| **is_sent reset** | `RemindersService.update()` ahora solo resetea `is_sent` cuando cambia `reminder_at` |
+| **Batch validation** | `batchOperations` ahora valida `data` contra `UpdateReminderDto` con `plainToInstance()` |
+| **Auth race condition** | `AuthService.loginOrRegister()` ahora usa `userRef.create()` con manejo de conflicto para evitar duplicate notebooks |
+| **Archived query** | `NotesService.findAll()` ahora usa `orderBy('archived_at')` antes de `orderBy('updated_at')` (requerido por Firestore) |
+
 ### Historial de cambios de estado
 
 | Fecha | Hito | Commit |
@@ -1299,3 +1319,5 @@ Usuario → clic "Continuar con Google"
 | 2026-02-13 | Audit P1: credenciales, helmet, endpoints expuestos, schema_version TipTap | `b62a136` |
 | 2026-02-13 | Audit P2: bugs bloqueantes reminders/attachments, UpdateNoteDto, Firebase rules sync | `b1ad8b4` |
 | 2026-02-13 | Audit P3: validación entradas, Algolia injection, TypeScript strict, dead deps | `1eb8663` |
+| 2026-02-14 | Audit 2 P1: IP spoofing, user-agent real, audit failures, route shadows | `2e1eca7` |
+| 2026-02-14 | Audit 2 P2: is_sent reset, batch validation, auth race, archived query | `8118abc` |
