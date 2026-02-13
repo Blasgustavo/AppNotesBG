@@ -69,6 +69,11 @@ export class CreateAttachmentDto {
   };
 }
 
+/**
+ * UpdateAttachmentDto — campos que el usuario puede modificar directamente.
+ * NOTA: virus_scan_status NO está incluido aquí para evitar que usuarios
+ * se auto-marquen como 'clean'. Solo el sistema/webhook puede actualizar ese campo.
+ */
 export class UpdateAttachmentDto {
   @IsOptional()
   @IsString()
@@ -81,16 +86,23 @@ export class UpdateAttachmentDto {
   alt_text?: string;
 
   @IsOptional()
-  @IsEnum(['pending', 'clean', 'infected', 'quarantine'])
-  virus_scan_status?: 'pending' | 'clean' | 'infected' | 'quarantine';
-
-  @IsOptional()
   @IsObject()
   access_control?: {
     public_access: boolean;
     allowed_users?: string[];
     download_permissions: 'all' | 'owner' | 'collaborators';
   };
+}
+
+/**
+ * SystemUpdateAttachmentDto — solo para uso interno del sistema/Cloud Functions.
+ * Incluye campos que no deben ser modificables por usuarios.
+ * NO exponer en endpoints públicos.
+ */
+export class SystemUpdateAttachmentDto extends UpdateAttachmentDto {
+  @IsOptional()
+  @IsEnum(['pending', 'clean', 'infected', 'quarantine'])
+  virus_scan_status?: 'pending' | 'clean' | 'infected' | 'quarantine';
 
   @IsOptional()
   @IsObject()

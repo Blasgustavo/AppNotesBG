@@ -175,20 +175,29 @@ export class SearchService {
         isPinned,
       } = options;
 
-      // Construir filtros Algolia
-      const filters: string[] = [`user_id:${userId}`];
+      // Construir filtros usando facetFilters (array estructurado) para evitar inyección
+      // facetFilters: AND entre arrays externos, OR dentro de cada array
+      // Referencia: https://www.algolia.com/doc/api-reference/api-parameters/facetFilters/
+      const facetFilters: string[][] = [
+        [`user_id:${userId}`], // Siempre filtrar por usuario — obligatorio
+      ];
 
       if (tags && tags.length > 0) {
-        const tagFilters = tags.map((tag) => `tags:"${tag}"`);
-        filters.push(`(${tagFilters.join(' OR ')})`);
+        // OR entre tags (el usuario puede filtrar por cualquiera de los tags)
+        const tagFilters = tags.map((tag) => `tags:${tag.replace(/[":]/g, '')}`);
+        facetFilters.push(tagFilters);
       }
 
       if (notebookId) {
-        filters.push(`notebook_name:"${notebookId}"`);
+        // Sanitizar notebookId para evitar inyección en filtro de string
+        const safeNotebookId = notebookId.replace(/[":]/g, '').trim();
+        facetFilters.push([`notebook_name:${safeNotebookId}`]);
       }
 
+      // isPinned usa filters numérico (booleano), no facetFilters
+      const numericFilters: string[] = [];
       if (isPinned !== undefined) {
-        filters.push(`is_pinned:${isPinned}`);
+        numericFilters.push(`is_pinned=${isPinned ? 1 : 0}`);
       }
 
       // Simplified search without complex Algolia typing
@@ -196,7 +205,8 @@ export class SearchService {
         requests: [{
           indexName: this.indexName,
           query,
-          filters: filters.join(' AND '),
+          facetFilters,
+          ...(numericFilters.length > 0 ? { numericFilters } : {}),
           hitsPerPage: Math.min(limit, 100),
           offset: Math.min(offset, 1000),
         }]
@@ -238,7 +248,7 @@ export class SearchService {
           indexName: this.indexName,
           query,
           hitsPerPage: limit,
-          filters: `user_id:${userId}`,
+          facetFilters: [[`user_id:${userId}`]], // Array para evitar inyección
           attributesToRetrieve: ['title'],
         }]
       });

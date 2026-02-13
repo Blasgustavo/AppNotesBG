@@ -7,6 +7,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { FirestoreService } from '../core/firestore';
 import * as admin from 'firebase-admin';
@@ -15,6 +16,7 @@ import { AuditService } from '../audit';
 import {
   CreateAttachmentDto,
   UpdateAttachmentDto,
+  SystemUpdateAttachmentDto,
 } from './dto/create-attachment.dto';
 
 const ATTACHMENTS_COL = 'attachments';
@@ -255,12 +257,16 @@ export class AttachmentsService {
 
     if (dto.name !== undefined) updates['name'] = dto.name;
     if (dto.alt_text !== undefined) updates['alt_text'] = dto.alt_text;
-    if (dto.virus_scan_status !== undefined)
-      updates['virus_scan_status'] = dto.virus_scan_status;
     if (dto.access_control !== undefined)
       updates['access_control'] = dto.access_control;
-    if (dto.optimization !== undefined)
-      updates['optimization'] = dto.optimization;
+    // virus_scan_status y optimization solo se actualizan desde SystemUpdateAttachmentDto
+    // a través de updateAttachmentSystem() — no desde el endpoint de usuario
+    if (dto instanceof SystemUpdateAttachmentDto) {
+      if (dto.virus_scan_status !== undefined)
+        updates['virus_scan_status'] = dto.virus_scan_status;
+      if (dto.optimization !== undefined)
+        updates['optimization'] = dto.optimization;
+    }
 
     await this.firestore.doc(ATTACHMENTS_COL, attachmentId).update(updates);
 
@@ -414,8 +420,7 @@ export class AttachmentsService {
   }
 
   private generateFileHash(buffer: Buffer): string {
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(buffer).digest('hex');
+    return createHash('sha256').update(buffer).digest('hex');
   }
 
   private async generateThumbnail(

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'crypto';
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import {
@@ -132,18 +133,16 @@ export class TipTapService {
    * Genera hash SHA-256 para verificación de integridad (content_hash)
    */
   generateContentHash(document: TipTapDocument): string {
-    const crypto = require('crypto');
     const content = JSON.stringify(document);
-    return crypto.createHash('sha256').update(content).digest('hex');
+    return createHash('sha256').update(content).digest('hex');
   }
 
   /**
    * Genera hash MD5 para validación rápida (checksum)
    */
   generateChecksum(document: TipTapDocument): string {
-    const crypto = require('crypto');
     const content = JSON.stringify(document);
-    return crypto.createHash('md5').update(content).digest('hex');
+    return createHash('md5').update(content).digest('hex');
   }
 
   // ─────────────────────────────────────────────

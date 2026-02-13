@@ -97,7 +97,8 @@ export class RemindersService {
 
     const noteData = noteSnap.data() as Record<string, unknown>;
     if (noteData['user_id'] !== userId) {
-      throw new BadRequestException('Access denied to this note');
+      // Usar NotFoundException para no revelar existencia de recursos de otros usuarios
+      throw new NotFoundException(`Note ${noteId} not found`);
     }
 
     // Validar que la fecha del recordatorio sea futura
@@ -205,7 +206,9 @@ export class RemindersService {
     // Re-programar notificación si es necesario
     if (updateData.reminder_at !== undefined) {
       const updated = await this.firestore.getDoc(REMINDERS_COL, reminderId);
-      await this.scheduleNotification(updated.id, new Date(updated['reminder_at']), updateData.message);
+      const updatedData = updated.data() as Record<string, unknown>;
+      const reminderAtValue = updatedData['reminder_at'] as FirebaseFirestore.Timestamp;
+      await this.scheduleNotification(updated.id, reminderAtValue.toDate(), updateData.message as string);
     }
 
     const updated = await this.firestore.getDoc(REMINDERS_COL, reminderId);
