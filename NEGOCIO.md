@@ -16,10 +16,11 @@ Aplicación de notas moderna inspirada en Evernote, Notion, AppFlowy y otros. In
 - **DOMPurify** (sanitización de contenido HTML)
 
 ### Backend
-- NestJS 10+
-- Firebase Admin SDK
+- NestJS 11+
+- Firebase Admin SDK 13+
 - Endpoints para auditoría, procesamiento y lógica extendida
-- **Algolia SDK** (indexación y búsqueda full-text)
+- **Algolia SDK v5** (indexación y búsqueda full-text)
+- **Winston** (logging estructurado — JSON en producción)
 
 ### Base de datos
 - Firebase Firestore (documentos y colecciones)
@@ -1264,6 +1265,29 @@ Usuario → clic "Continuar con Google"
 | **Skills creation** | Nuevo dominio → `create-skill.md` → nuevo agente/subagente → `sync-agents.md` | Agregado sin romper arquitectura |
 | **Knowledge base** | `coding-standards/<tech>.md` se crea gradualmente | Convenciones crecen según necesidades reales |
 
+### ✅ Completado — Audit de Seguridad y Calidad (2026-02-13)
+
+| Área | Mejoras aplicadas |
+|---|---|
+| **Credenciales** | Eliminado `service-account.json` del disco; Firebase Admin SDK usa exclusivamente variables de entorno |
+| **HTTP Security** | `helmet()` aplicado en `main.ts` con headers: X-Frame-Options, HSTS, X-Content-Type-Options, CSP |
+| **Trust Proxy** | Configurado `trust proxy: 1` solo en producción para X-Forwarded-For seguro |
+| **Endpoints expuestos** | `/reminders/expired`, `/reminders/pending` y `/search/stats` ahora son user-scoped; nunca retornan datos de otros usuarios |
+| **Swagger** | Solo disponible en entornos no-producción (`NODE_ENV !== 'production'`) |
+| **TipTap Schema** | `TipTapDocument` incluye campo `schema_version: '2.0'` requerido; `isValidTipTapDocument()` lo verifica |
+| **Reminders bugs** | `findOne()` ya no lanza error en recordatorios expirados; permite eliminar/actualizar reminders pasados |
+| **Attachment cleanup** | Error handler usa `storagePath` correcto (fileName generado) en lugar de `file.originalname` |
+| **UpdateNoteDto** | Extiende `PartialType(CreateNoteDto)` — todos los campos son opcionales para PATCH parcial |
+| **Firebase Rules** | `/firebase/firestore.rules` y `/firebase/storage.rules` sincronizados con la versión canónica del root |
+| **Ownership errors** | `reminders.service.ts`: `BadRequestException` → `NotFoundException` para no revelar existencia de recursos |
+| **virus_scan_status** | Separado en `SystemUpdateAttachmentDto` — usuarios no pueden auto-marcarse como 'clean' |
+| **Algolia injection** | Filtros de búsqueda migrados a `facetFilters` (array estructurado) para eliminar inyección por string interpolation |
+| **Dead dependencies** | Eliminados: `passport`, `passport-google-oauth20`, `@nestjs/passport`, `express-rate-limit` |
+| **TypeScript strict** | `noImplicitAny: true`, `strictBindCallApply: true`, `noFallthroughCasesInSwitch: true` activados |
+| **Crypto imports** | Reemplazados `require('crypto')` dinámicos por `import { createHash } from 'crypto'` estático |
+| **Logging** | Winston integrado via `nest-winston` — logs JSON estructurados en producción, coloridos en desarrollo |
+| **Coding standards** | Creados `skills/AppNotesBG-meta/coding-standards/nestjs.md` y `typescript.md` |
+
 ### Historial de cambios de estado
 
 | Fecha | Hito | Commit |
@@ -1272,3 +1296,6 @@ Usuario → clic "Continuar con Google"
 | 2026-02-11 | Infraestructura base Firebase + environments | `b0e2bc7` |
 | 2026-02-11 | Módulo de autenticación completo | `ad0f362` |
 | 2026-02-12 | Backend alineado con NEGOCIO.md: AuditModule, correcciones de modelo y compilación exitosa | `36bf7ee` |
+| 2026-02-13 | Audit P1: credenciales, helmet, endpoints expuestos, schema_version TipTap | `b62a136` |
+| 2026-02-13 | Audit P2: bugs bloqueantes reminders/attachments, UpdateNoteDto, Firebase rules sync | `b1ad8b4` |
+| 2026-02-13 | Audit P3: validación entradas, Algolia injection, TypeScript strict, dead deps | `1eb8663` |

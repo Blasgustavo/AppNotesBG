@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FirebaseAdminModule, FirebaseAuthGuard } from './core/firebase';
@@ -15,7 +17,6 @@ import { AttachmentsModule } from './attachments/attachments.module';
 import { ThemesModule } from './themes/themes.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { AuditModule } from './audit/audit.module';
-import { TestModule } from './testing/test.module';
 
 @Module({
   imports: [
@@ -23,6 +24,28 @@ import { TestModule } from './testing/test.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+
+    // Logger estructurado con Winston — reemplaza console.log/error en producción
+    WinstonModule.forRoot({
+      level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+      format: process.env.NODE_ENV === 'production'
+        ? winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.errors({ stack: true }),
+            winston.format.json(), // JSON estructurado para Cloud Logging / Datadog
+          )
+        : winston.format.combine(
+            winston.format.colorize(),
+            winston.format.timestamp({ format: 'HH:mm:ss' }),
+            winston.format.printf(({ level, message, timestamp, context, stack }) =>
+              `${timestamp} [${context ?? 'App'}] ${level}: ${message}${stack ? '\n' + stack : ''}`,
+            ),
+          ),
+      transports: [
+        new winston.transports.Console(),
+        // En producción agregar: new winston.transports.File({ filename: 'error.log', level: 'error' })
+      ],
     }),
 
     // Firebase Admin SDK — global, disponible en todos los módulos
@@ -43,9 +66,6 @@ import { TestModule } from './testing/test.module';
     ThemesModule,
     RemindersModule,
     AuditModule,
-
-    // Módulos de testing (desactivado temporalmente)
-    // ...(process.env.NODE_ENV !== 'production' ? [TestModule] : []),
 
     ThrottlerModule.forRoot([
       {
