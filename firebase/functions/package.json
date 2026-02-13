@@ -2,8 +2,9 @@
   "name": "appnotesbg-functions",
   "version": "1.0.0",
   "description": "Cloud Functions for AppNotesBG",
-  "main": "src/index.js",
+  "main": "lib/index.js",
   "scripts": {
+    "build": "tsc",
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"

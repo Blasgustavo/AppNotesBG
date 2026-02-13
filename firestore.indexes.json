@@ -1,6 +1,5 @@
 {
   "indexes": [
-    // ─── notes ─────────────────────────────────────────────────────
     {
       "collectionGroup": "notes",
       "queryScope": "COLLECTION",
@@ -15,24 +14,6 @@
       "fields": [
         { "fieldPath": "user_id", "order": "ASCENDING" },
         { "fieldPath": "notebook_id", "order": "ASCENDING" },
-        { "fieldPath": "updated_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "tags", "order": "ASCENDING", "arrayConfig": { "arrayContains": "any", "query": "array-contains-any" } },
-        { "fieldPath": "updated_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "is_pinned", "order": "ASCENDING" },
         { "fieldPath": "updated_at", "order": "DESCENDING" }
       ]
     },
@@ -55,35 +36,6 @@
       ]
     },
     {
-      "collectionGroup": "notes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "notebook_id", "order": "ASCENDING" },
-        { "fieldPath": "updated_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "word_count", "order": "ASCENDING" },
-        { "fieldPath": "updated_at", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "is_template", "order": "ASCENDING" },
-        { "fieldPath": "updated_at", "order": "DESCENDING" }
-      ]
-    },
-
-    // ─── note_history ─────────────────────────────────────────────────────
-
-    {
       "collectionGroup": "note_history",
       "queryScope": "COLLECTION",
       "fields": [
@@ -99,11 +51,6 @@
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     },
-
-    // ─── notebooks ─────────────────────────────────────────────────────
-    // parent_notebook_id, sort_order, is_favorite no necesitan índices compuestos
-    // Solo el compuesto (user_id, sort_order) cubre el caso de uso común
-
     {
       "collectionGroup": "notebooks",
       "queryScope": "COLLECTION",
@@ -112,11 +59,6 @@
         { "fieldPath": "sort_order", "order": "ASCENDING" }
       ]
     },
-
-    // ─── attachments ─────────────────────────────────────────────────────
-    // file_hash solo se usará para búsqueda de duplicados (post-MVP)
-    // Para MVP solo se necesita (user_id, note_id, created_at)
-
     {
       "collectionGroup": "attachments",
       "queryScope": "COLLECTION",
@@ -126,10 +68,6 @@
         { "fieldPath": "created_at", "order": "DESCENDING" }
       ]
     },
-
-    // ─── invitations ─────────────────────────────────────────────────────
-    // Solo necesitan single-field indexes: invitado_email, invitation_token
-
     {
       "collectionGroup": "invitations",
       "queryScope": "COLLECTION",
@@ -138,41 +76,22 @@
       ]
     },
     {
-      "collectionGroup": "invitations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "invitations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "invitation_token", "order": "ASCENDING" }
-      ]
-    },
-
-    // ─── audit_logs ─────────────────────────────────────────────────────
-    // Los logs de auditoría se consultan via Cloud Functions/Admin SDK
-    // No se necesitan índices en el cliente (NestJS Admin SDK usa in operator)
-
-    // Si se agregan más tarde, descomentar este bloque:
-    /*
-    {
       "collectionGroup": "audit_logs",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "action", "order": "ASCENDING" },
-        { "fieldPath": "resource_type", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     },
-    */
-
-    // ─── users ─────────────────────────────────────────────────────
-    // Índice en email para búsqueda de usuarios por email (uso futuro, MVP no lo necesita)
-
+    {
+      "collectionGroup": "audit_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "resource_type", "order": "ASCENDING" },
+        { "fieldPath": "resource_id", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
@@ -180,11 +99,6 @@
         { "fieldPath": "email", "order": "ASCENDING" }
       ]
     },
-
-    // ─── themes ─────────────────────────────────────────────────────
-    // is_public y usage_count no necesitan índices para el MVP (bajo volumen)
-    // Solo user_id es necesario para filtrado por propietario
-
     {
       "collectionGroup": "themes",
       "queryScope": "COLLECTION",
@@ -192,15 +106,5 @@
         { "fieldPath": "user_id", "order": "ASCENDING" }
       ]
     }
-  ],
-
-    "fieldOverrides": [],
-    "indexes": [
-      // Índice para borrar residuales (sin underscore)
-      {
-        "collectionGroup": "cleanup_residuals",
-        "queryScope": "COLLECTION",
-        "fields": [{ "fieldPath": "residual", "order": "ASCENDING" }]
-      }
-    ]
+  ]
 }
