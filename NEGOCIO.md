@@ -1,5 +1,14 @@
 # Notes App — Proyecto Personal
 
+## Historial de versiones
+
+| Versión | Fecha | Cambios | Autor |
+|---------|-------|---------|-------|
+| 1.0.0 | 2026-02-10 | Creación inicial del documento con modelo de datos, stack tecnológico, y roadmap | AppNotesBG setup |
+| 1.1.0 | 2026-02-13 | Phase 1-5: autenticación (refresh/revoke sessions), validación de inputs (pipes), cifrado AES-256, auditoría avanzada, integración IA (Gemini), CI/CD (GitHub Actions), Cloud Functions, códigos de error | AppNotesBG |
+
+---
+
 Aplicación de notas moderna inspirada en Evernote, Notion, AppFlowy y otros. Incluye autenticación con Google, sincronización en tiempo real, historial de cambios, estilos personalizables y adjuntos. Construida con **Angular**, **NestJS** y **Firebase**.
 
 ---
@@ -14,6 +23,7 @@ Aplicación de notas moderna inspirada en Evernote, Notion, AppFlowy y otros. In
 - TailwindCSS
 - **TipTap** (editor de texto enriquecido, basado en ProseMirror)
 - **DOMPurify** (sanitización de contenido HTML)
+- **jsdom** (servidor DOM para sanitización en backend)
 
 ### Backend
 - NestJS 11+
@@ -21,6 +31,10 @@ Aplicación de notas moderna inspirada en Evernote, Notion, AppFlowy y otros. In
 - Endpoints para auditoría, procesamiento y lógica extendida
 - **Algolia SDK v5** (indexación y búsqueda full-text)
 - **Winston** (logging estructurado — JSON en producción)
+- **@nestjs/throttler** (rate limiting por IP y usuario)
+- **class-validator** + **class-transformer** (validación de DTOs)
+- **@google/generative-ai** (Google Gemini para IA)
+- **crypto** (Node.js - cifrado AES-256)
 
 ### Base de datos
 - Firebase Firestore (documentos y colecciones)
@@ -73,9 +87,29 @@ Descripción: Reglas de seguridad para Firestore y Storage, y Cloud Functions.
 └── /firebase
     └── firestore.rules
     └── storage.rules
+    └── firestore.indexes.json
     └── /functions
-        └── /algolia-sync      (trigger onCreate/onUpdate/onDelete de notas)
-        └── /reminder-notify   (scheduler para recordatorios)
+        └── /src
+            └── index.ts              ← Cloud Functions (helloWorld, syncAlgoliaIndex, detectAnomalies)
+```
+
+.github — GitHub Actions y configuración
+Descripción: Pipelines de CI/CD y hooks de Git.
+
+```
+└── /.github
+    └── /workflows
+        └── ci.yml                  ← Pipeline de CI (lint, test, build)
+        └── deploy.yml              ← Pipeline de CD (deploy a producción)
+    └── /workflows.disabled
+```
+
+.husky — Git hooks
+Descripción: Hooks de Git para validación de commits.
+
+```
+└── /.husky
+    └── commit-msg                 ← Hook para validar mensajes de commit
 ```
 
 skills — Sistema de agentes y habilidades de IA
@@ -578,6 +612,87 @@ Invitaciones para compartir notas con otros usuarios con control de seguridad y 
 
 ---
 
+### Colección: `sessions`
+Gestión de sesiones de usuario con rotación de tokens y soporte múltiples dispositivos.
+
+```json
+{
+  "id": "session_id",
+  "user_id": "google_uid",
+  "refresh_token_hash": "sha256_hash_of_refresh_token",
+  "created_at": "timestamp",
+  "expires_at": "timestamp",
+  "device_info": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "ip_address": "192.168.1.1",
+  "is_active": true,
+  "last_used_at": "timestamp",
+  "revoked_at": null,
+  "revoked_ip": null
+}
+```
+
+> **Gestión de sesiones:**
+> - `refresh_token_hash`: Token de refresco hasheado con SHA-256
+> - `expires_at`: Expiración de sesión (30 días por defecto)
+> - `is_active`: Control de sesión activa/revocada
+> - Máximo 5 sesiones concurrentes por usuario
+> - Rotación de tokens en cada refresh
+
+---
+
+### Colección: `notifications`
+Notificaciones de recordatorios y otras alertas para el usuario.
+
+```json
+{
+  "id": "notification_id",
+  "user_id": "google_uid",
+  "note_id": "note_id",
+  "type": "reminder|share|mention",
+  "title": "Recordatorio: título de la nota",
+  "message": "Mensaje adicional de la notificación",
+  "created_at": "timestamp",
+  "read": false,
+  "read_at": null
+}
+```
+
+> **Tipos de notificaciones:**
+> - `reminder`: Recordatorio de nota
+> - `share`: Nota compartida con el usuario
+> - `mention`: Usuario mencionado en una nota colaborativa
+
+---
+
+### Colección: `security_alerts`
+Alertas de seguridad generadas por Cloud Functions para detectar actividad sospechosa.
+
+```json
+{
+  "id": "alert_id",
+  "type": "suspicious_activity|rate_limit_exceeded|failed_login|...",
+  "user_id": "google_uid",
+  "log_id": "audit_log_id",
+  "details": {
+    "action": "delete",
+    "resourceType": "note",
+    "ipAddress": "unknown"
+  },
+  "created_at": "timestamp",
+  "resolved": false,
+  "resolved_at": null,
+  "resolved_by": null
+}
+```
+
+> **Alertas de seguridad:**
+> - Detección automática de actividad sospechosa via Cloud Functions
+> -Tracking de IPs desconocidas
+> - Registro de acciones sensibles (delete, etc.)
+> - Estado de resolución para seguimiento
+
+---
+
 ## Índices Críticos de Performance
 
 ### Índices Compuestos Requeridos
@@ -787,6 +902,107 @@ const AuditRequirements = {
   ]
 };
 ```
+
+---
+
+## Códigos de Error
+
+Sistema de códigos de error estandarizados para toda la API. Implementado en `api/src/core/errors/error-codes.ts`.
+
+### Estructura de códigos
+
+| Prefijo | Categoría |
+|---------|-----------|
+| `A1xxx` | Errores de Autenticación |
+| `N2xxx` | Errores de Notas |
+| `B3xxx` | Errores de Libretas |
+| `AT4xxx` | Errores de Adjuntos |
+| `V5xxx` | Errores de Validación |
+| `F6xxx` | Errores de Firestore |
+| `R7xxx` | Errores de Rate Limiting |
+| `I9xxx` | Errores Internos |
+
+### Códigos detallados
+
+#### Autenticación (A1xxx)
+
+| Código | Descripción |
+|--------|------------|
+| A1001 | Token de autenticación inválido |
+| A1002 | Token de autenticación expirado |
+| A1003 | Se requiere refresh token |
+| A1004 | Refresh token inválido o expirado |
+| A1005 | Sesión no encontrada |
+| A1006 | Sesión expirada |
+| A1007 | Máximo de sesiones alcanzado |
+| A1008 | Credenciales inválidas |
+
+#### Notas (N2xxx)
+
+| Código | Descripción |
+|--------|------------|
+| N2001 | Nota no encontrada |
+| N2002 | No tienes acceso a esta nota |
+| N2003 | Contenido de nota inválido |
+| N2004 | Conflicto de versiones |
+| N2005 | Snapshot de versión no encontrado |
+| N2006 | La nota está bloqueada por otro usuario |
+| N2007 | La nota está archivada |
+
+#### Libretas (B3xxx)
+
+| Código | Descripción |
+|--------|------------|
+| B3001 | Libreta no encontrada |
+| B3002 | No tienes acceso a esta libreta |
+| B3003 | No se puede modificar la libreta por defecto |
+| B3004 | No se puede eliminar una libreta con notas |
+| B3005 | No se puede eliminar una libreta con notas archivadas |
+
+#### Adjuntos (AT4xxx)
+
+| Código | Descripción |
+|--------|------------|
+| AT4001 | Adjunto no encontrado |
+| AT4002 | No tienes acceso a este adjunto |
+| AT4003 | El archivo excede el tamaño máximo permitido |
+| AT4004 | Tipo de archivo no permitido |
+| AT4005 | Cuota de almacenamiento excedida |
+| AT4006 | Error al subir el archivo |
+
+#### Validación (V5xxx)
+
+| Código | Descripción |
+|--------|------------|
+| V5001 | Entrada inválida |
+| V5002 | Campo requerido faltante |
+| V5003 | Formato inválido |
+| V5004 | Longitud máxima excedida |
+| V5005 | Número máximo de elementos excedido |
+
+#### Firestore (F6xxx)
+
+| Código | Descripción |
+|--------|------------|
+| F6001 | Documento no encontrado |
+| F6002 | El documento ya existe |
+| F6003 | Error en la transacción |
+| F6004 | Error en la consulta |
+
+#### Rate Limiting (R7xxx)
+
+| Código | Descripción |
+|--------|------------|
+| R7001 | Demasiadas solicitudes |
+| R7002 | Límite de solicitudes del usuario excedido |
+
+#### Internos (I9xxx)
+
+| Código | Descripción |
+|--------|------------|
+| I9001 | Error interno del servidor |
+| I9002 | Error de base de datos |
+| I9003 | Error en servicio externo |
 
 ---
 
@@ -1099,6 +1315,58 @@ firebase deploy --only firestore:rules
 firebase deploy --only storage:rules
 firebase deploy --only functions
 ```
+
+---
+
+## CI/CD
+
+### GitHub Actions
+
+#### Workflow: CI (`ci.yml`)
+
+Pipeline de integración continua que se ejecuta en cada push y pull request.
+
+```
+├── on: [push, pull_request]
+│   └── branches: [main, develop]
+├── Jobs:
+│   ├── test
+│   │   ├── Node.js 20
+│   │   ├── npm ci
+│   │   ├── npm run lint
+│   │   └── npm run test
+│   └── lint-commits
+│       └── wagoid/commitlint-github-action
+```
+
+#### Workflow: Deploy (`deploy.yml`)
+
+Pipeline de deployment que se ejecuta solo en pushes a main.
+
+```
+├── on: [push]
+│   └── branches: [main]
+├── Jobs:
+│   ├── deploy-api (Cloud Run)
+│   ├── deploy-firebase (Firestore, Storage)
+│   └── deploy-functions (Firebase Functions)
+```
+
+### Commitlint + Husky
+
+Validación de mensajes de commit usando Conventional Commits.
+
+```bash
+# Formato requerido
+<tipo>(<alcance>): <descripción>
+
+# Ejemplos
+feat(auth): add refresh token endpoint
+fix(notes): resolve version conflict
+docs: update NEGOCIO.md to v1.1.0
+```
+
+**Tipos permitidos:** feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
 
 ---
 
